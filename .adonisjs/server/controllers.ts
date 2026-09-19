@@ -4,6 +4,10 @@
  */
 
 export const controllers = {
+  DiscordAuth: () => import('#controllers/discord_auth_controller'),
+  Home: () => import('#controllers/home_controller'),
   NewAccount: () => import('#controllers/new_account_controller'),
+  Playlists: () => import('#controllers/playlists_controller'),
   Session: () => import('#controllers/session_controller'),
+  Vote: () => import('#controllers/vote_controller'),
 }

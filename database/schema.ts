@@ -7,11 +7,97 @@
 import { BaseModel, column } from '@adonisjs/lucid/orm'
 import { DateTime } from 'luxon'
 
-export class UserSchema extends BaseModel {
-  static $columns = ['createdAt', 'email', 'fullName', 'id', 'password', 'updatedAt'] as const
-  $columns = UserSchema.$columns
+export class PlaylistItemSchema extends BaseModel {
+  static $columns = [
+    'createdAt',
+    'description',
+    'id',
+    'imageUrl',
+    'passes',
+    'playlistId',
+    'position',
+    'smashes',
+    'title',
+    'updatedAt',
+  ] as const
+  $columns = PlaylistItemSchema.$columns
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
+  @column()
+  declare description: string | null
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare imageUrl: string
+  @column()
+  declare passes: number
+  @column()
+  declare playlistId: number
+  @column()
+  declare position: number
+  @column()
+  declare smashes: number
+  @column()
+  declare title: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime | null
+}
+
+export class PlaylistSchema extends BaseModel {
+  static $columns = [
+    'accent',
+    'createdAt',
+    'description',
+    'id',
+    'isPublic',
+    'plays',
+    'slug',
+    'title',
+    'updatedAt',
+    'userId',
+  ] as const
+  $columns = PlaylistSchema.$columns
+  @column()
+  declare accent: string
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare description: string | null
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare isPublic: boolean
+  @column()
+  declare plays: number
+  @column()
+  declare slug: string
+  @column()
+  declare title: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime | null
+  @column()
+  declare userId: number
+}
+
+export class UserSchema extends BaseModel {
+  static $columns = [
+    'avatarUrl',
+    'createdAt',
+    'discordId',
+    'email',
+    'fullName',
+    'id',
+    'password',
+    'updatedAt',
+    'username',
+  ] as const
+  $columns = UserSchema.$columns
+  @column()
+  declare avatarUrl: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare discordId: string | null
   @column()
   declare email: string
   @column()
@@ -22,4 +108,33 @@ export class UserSchema extends BaseModel {
   declare password: string
   @column.dateTime({ autoCreate: true, autoUpdate: true })
   declare updatedAt: DateTime | null
+  @column()
+  declare username: string | null
+}
+
+export class VoteSchema extends BaseModel {
+  static $columns = [
+    'createdAt',
+    'id',
+    'isSmash',
+    'playlistItemId',
+    'updatedAt',
+    'userId',
+    'visitorId',
+  ] as const
+  $columns = VoteSchema.$columns
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare isSmash: boolean
+  @column()
+  declare playlistItemId: number
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime | null
+  @column()
+  declare userId: number | null
+  @column()
+  declare visitorId: string
 }

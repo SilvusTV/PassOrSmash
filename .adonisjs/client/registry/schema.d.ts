@@ -15,8 +15,104 @@ export interface Registry {
       paramsTuple: []
       params: {}
       query: {}
-      response: unknown
-      errorResponse: unknown
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/home_controller').default['index']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/home_controller').default['index']>>>
+    }
+  }
+  'explore': {
+    methods: ["GET","HEAD"]
+    pattern: '/explore'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/home_controller').default['explore']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/home_controller').default['explore']>>>
+    }
+  }
+  'home.robots': {
+    methods: ["GET","HEAD"]
+    pattern: '/robots.txt'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/home_controller').default['robots']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/home_controller').default['robots']>>>
+    }
+  }
+  'home.sitemap': {
+    methods: ["GET","HEAD"]
+    pattern: '/sitemap.xml'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/home_controller').default['sitemap']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/home_controller').default['sitemap']>>>
+    }
+  }
+  'playlists.show': {
+    methods: ["GET","HEAD"]
+    pattern: '/p/:slug'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { slug: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/playlists_controller').default['show']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/playlists_controller').default['show']>>>
+    }
+  }
+  'votes.store': {
+    methods: ["POST"]
+    pattern: '/vote'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/vote').voteValidator)>>
+      paramsTuple: []
+      params: {}
+      query: ExtractQuery<InferInput<(typeof import('#validators/vote').voteValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/vote_controller').default['store']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/vote_controller').default['store']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'auth.discord': {
+    methods: ["GET","HEAD"]
+    pattern: '/auth/discord'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/discord_auth_controller').default['redirect']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/discord_auth_controller').default['redirect']>>>
+    }
+  }
+  'discord_auth.callback': {
+    methods: ["GET","HEAD"]
+    pattern: '/auth/discord/callback'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/discord_auth_controller').default['callback']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/discord_auth_controller').default['callback']>>>
+    }
+  }
+  'auth.error': {
+    methods: ["GET","HEAD"]
+    pattern: '/auth/error'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/discord_auth_controller').default['error']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/discord_auth_controller').default['error']>>>
     }
   }
   'new_account.create': {
@@ -67,7 +163,79 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/session_controller').default['store']>>> | { status: 422; response: { errors: SimpleError[] } }
     }
   }
-  'session.destroy': {
+  'playlists.index': {
+    methods: ["GET","HEAD"]
+    pattern: '/dashboard'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/playlists_controller').default['index']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/playlists_controller').default['index']>>>
+    }
+  }
+  'playlists.create': {
+    methods: ["GET","HEAD"]
+    pattern: '/playlists/create'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/playlists_controller').default['create']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/playlists_controller').default['create']>>>
+    }
+  }
+  'playlists.store': {
+    methods: ["POST"]
+    pattern: '/playlists'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/playlist').createPlaylistValidator)>>
+      paramsTuple: []
+      params: {}
+      query: ExtractQuery<InferInput<(typeof import('#validators/playlist').createPlaylistValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/playlists_controller').default['store']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/playlists_controller').default['store']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'playlists.edit': {
+    methods: ["GET","HEAD"]
+    pattern: '/p/:slug/edit'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { slug: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/playlists_controller').default['edit']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/playlists_controller').default['edit']>>>
+    }
+  }
+  'playlists.update': {
+    methods: ["PUT"]
+    pattern: '/p/:slug'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/playlist').createPlaylistValidator)>>
+      paramsTuple: [ParamValue]
+      params: { slug: ParamValue }
+      query: ExtractQuery<InferInput<(typeof import('#validators/playlist').createPlaylistValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/playlists_controller').default['update']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/playlists_controller').default['update']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'playlists.destroy': {
+    methods: ["DELETE"]
+    pattern: '/p/:slug'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { slug: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/playlists_controller').default['destroy']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/playlists_controller').default['destroy']>>>
+    }
+  }
+  'auth.logout': {
     methods: ["POST"]
     pattern: '/logout'
     types: {
@@ -75,8 +243,8 @@ export interface Registry {
       paramsTuple: []
       params: {}
       query: {}
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/session_controller').default['destroy']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/session_controller').default['destroy']>>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/discord_auth_controller').default['logout']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/discord_auth_controller').default['logout']>>>
     }
   }
 }
