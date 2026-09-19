@@ -199,6 +199,18 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/playlists_controller').default['store']>>> | { status: 422; response: { errors: SimpleError[] } }
     }
   }
+  'uploads.images.store': {
+    methods: ["POST"]
+    pattern: '/uploads/images'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/upload_controller').default['store']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/upload_controller').default['store']>>>
+    }
+  }
   'playlists.edit': {
     methods: ["GET","HEAD"]
     pattern: '/p/:slug/edit'

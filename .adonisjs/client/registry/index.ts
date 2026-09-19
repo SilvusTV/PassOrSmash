@@ -102,6 +102,12 @@ const routes = {
     tokens: [{"old":"/playlists","type":0,"val":"playlists","end":""}],
     types: placeholder as Registry['playlists.store']['types'],
   },
+  'uploads.images.store': {
+    methods: ["POST"],
+    pattern: '/uploads/images',
+    tokens: [{"old":"/uploads/images","type":0,"val":"uploads","end":""},{"old":"/uploads/images","type":0,"val":"images","end":""}],
+    types: placeholder as Registry['uploads.images.store']['types'],
+  },
   'playlists.edit': {
     methods: ["GET","HEAD"],
     pattern: '/p/:slug/edit',

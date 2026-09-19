@@ -35,4 +35,9 @@ export interface ApiDefinition {
     create: typeof routes['session.create']
     store: typeof routes['session.store']
   }
+  uploads: {
+    images: {
+      store: typeof routes['uploads.images.store']
+    }
+  }
 }

@@ -1,5 +1,7 @@
 import { useForm } from '@inertiajs/react'
-import type { FormEvent } from 'react'
+import axios from 'axios'
+import { useState } from 'react'
+import type { ChangeEvent, FormEvent } from 'react'
 
 type Item = { title: string; description: string; imageUrl: string }
 type Initial = {
@@ -10,6 +12,58 @@ type Initial = {
   items: Item[]
 }
 const blankItem = (): Item => ({ title: '', description: '', imageUrl: '' })
+
+function ImageSource({ value, onChange }: { value: string; onChange: (url: string) => void }) {
+  const [uploading, setUploading] = useState(false)
+  const [error, setError] = useState('')
+
+  const upload = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+    setUploading(true)
+    setError('')
+    const body = new FormData()
+    body.append('image', file)
+    try {
+      const { data } = await axios.post<{ url: string }>('/uploads/images', body)
+      onChange(data.url)
+    } catch (uploadError) {
+      const message = axios.isAxiosError(uploadError)
+        ? uploadError.response?.data?.error
+        : undefined
+      setError(message || "L'import a échoué. Vérifie le format et réessaie.")
+    } finally {
+      setUploading(false)
+      event.target.value = ''
+    }
+  }
+
+  return (
+    <div className="image-source">
+      <label>
+        URL de l’image
+        <input
+          type="url"
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          placeholder="https://…"
+          required
+        />
+      </label>
+      <span>ou</span>
+      <label className={`upload-button ${uploading ? 'uploading' : ''}`}>
+        <input
+          type="file"
+          accept="image/jpeg,image/png,image/webp,image/gif"
+          onChange={upload}
+          disabled={uploading}
+        />
+        {uploading ? 'Import en cours…' : '↑ Importer une image'}
+      </label>
+      {error && <small className="upload-error">{error}</small>}
+    </div>
+  )
+}
 
 export default function PlaylistForm({
   initial,
@@ -116,8 +170,8 @@ export default function PlaylistForm({
             <div>
               <h2>Les images</h2>
               <p>
-                Ajoute au moins deux images avec une URL publique. Elles seront présentées dans cet
-                ordre.
+                Ajoute au moins deux images par lien ou importe-les depuis ton appareil. Elles
+                seront présentées dans cet ordre.
               </p>
             </div>
             <button
@@ -139,16 +193,10 @@ export default function PlaylistForm({
                   {!item.imageUrl && 'IMAGE'}
                 </div>
                 <div className="item-fields">
-                  <label>
-                    URL de l’image
-                    <input
-                      type="url"
-                      value={item.imageUrl}
-                      onChange={(e) => updateItem(index, 'imageUrl', e.target.value)}
-                      placeholder="https://…"
-                      required
-                    />
-                  </label>
+                  <ImageSource
+                    value={item.imageUrl}
+                    onChange={(url) => updateItem(index, 'imageUrl', url)}
+                  />
                   <label>
                     Titre
                     <input

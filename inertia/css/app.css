@@ -829,8 +829,47 @@ footer > div {
   grid-template-columns: 1fr 1fr;
   gap: 0 12px;
 }
-.item-fields label:first-child {
+.item-fields > .image-source {
   grid-column: 1/-1;
+}
+.image-source {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 10px;
+  align-items: end;
+}
+.image-source > span {
+  align-self: center;
+  margin-top: 20px;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+.upload-button {
+  background: var(--ink);
+  color: #fff;
+  cursor: pointer;
+  padding: 11px 14px;
+  min-height: 39px;
+  white-space: nowrap;
+  text-align: center;
+}
+.upload-button input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+.upload-button.uploading {
+  opacity: 0.6;
+  cursor: wait;
+}
+.upload-error {
+  grid-column: 1/-1;
+  color: #a32b1b;
+  font-size: 11px;
 }
 .item-fields label {
   margin: 4px 0 !important;
@@ -1227,6 +1266,13 @@ footer > div {
   .item-fields {
     grid-column: 1/-1;
     grid-template-columns: 1fr;
+  }
+  .image-source {
+    grid-template-columns: 1fr;
+  }
+  .image-source > span {
+    margin: 0;
+    text-align: center;
   }
   .remove-item {
     grid-column: 2;

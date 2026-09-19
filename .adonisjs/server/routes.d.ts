@@ -20,6 +20,7 @@ export type ScannedRoutes = {
     'playlists.index': { paramsTuple?: []; params?: {} }
     'playlists.create': { paramsTuple?: []; params?: {} }
     'playlists.store': { paramsTuple?: []; params?: {} }
+    'uploads.images.store': { paramsTuple?: []; params?: {} }
     'playlists.edit': { paramsTuple: [ParamValue]; params: {'slug': ParamValue} }
     'playlists.update': { paramsTuple: [ParamValue]; params: {'slug': ParamValue} }
     'playlists.destroy': { paramsTuple: [ParamValue]; params: {'slug': ParamValue} }
@@ -60,6 +61,7 @@ export type ScannedRoutes = {
     'new_account.store': { paramsTuple?: []; params?: {} }
     'session.store': { paramsTuple?: []; params?: {} }
     'playlists.store': { paramsTuple?: []; params?: {} }
+    'uploads.images.store': { paramsTuple?: []; params?: {} }
     'auth.logout': { paramsTuple?: []; params?: {} }
   }
   PUT: {
