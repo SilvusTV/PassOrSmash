@@ -1,65 +1,72 @@
-import { type Data } from '@generated/data'
+/* eslint-disable @adonisjs/prefer-adonisjs-inertia-link */
 import { toast, Toaster } from 'sonner'
-import { usePage } from '@inertiajs/react'
+import { Link, usePage } from '@inertiajs/react'
 import { type ReactElement, useEffect } from 'react'
-import { Form, Link } from '@adonisjs/inertia/react'
+import { Form } from '@adonisjs/inertia/react'
 
-export default function Layout({ children }: { children: ReactElement<Data.SharedProps> }) {
-  const { url, flash } = usePage()
+function Brand() {
+  return (
+    <span className="brand">
+      <span>PASS</span>
+      <i>or</i>
+      <strong>SMASH</strong>
+    </span>
+  )
+}
+
+export default function Layout({ children }: { children: ReactElement }) {
+  const { url, flash, props } = usePage()
+  const user = props.user as
+    { fullName?: string; username?: string; avatarUrl?: string; initials?: string } | undefined
+
   useEffect(() => {
     toast.dismiss()
   }, [url])
-
   useEffect(() => {
-    if (flash.error) {
-      toast.error(flash.error)
-    }
-    if (flash.success) {
-      toast.success(flash.success)
-    }
-  })
+    if (flash.error) toast.error(flash.error)
+    if (flash.success) toast.success(flash.success)
+  }, [flash])
 
   return (
-    <>
-      <header>
-        <div>
-          <div>
-            <Link route="home">
-              <svg
-                width="120"
-                height="24"
-                viewBox="0 0 195 38"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <path
-                  d="M180 37.5v-30h-7.5V0H195v7.5h-7.5v30H180ZM150 15V7.5h-15V0h15v7.5h7.5V15H150Zm-15 22.5V30h-7.5V7.5h7.5V30h15v7.5h-15Zm15-7.5v-7.5h7.5V30H150ZM82.5 37.5v-30H90V0h15v7.5h7.5v30H105v-15H90v15h-7.5ZM90 15h15V7.8H90V15ZM45 37.5V0h22.5v7.5h-15V15h15v7.5h-15V30h15v7.5H45ZM0 37.5V0h22.5v7.5H30V15h-7.5v15H30v7.5h-7.5V30H15v-7.5H7.5v15H0ZM7.5 15h14.7V7.5H7.5V15Z"
-                  fill="currentColor"
-                />
-              </svg>
-            </Link>
-          </div>
-          <div>
-            <nav>
-              {children.props.user ? (
-                <>
-                  <span>{children.props.user.initials}</span>
-                  <Form route="session.destroy">
-                    <button type="submit"> Logout </button>
-                  </Form>
-                </>
-              ) : (
-                <>
-                  <Link route="new_account.create">Signup</Link>
-                  <Link route="session.create">Login</Link>
-                </>
-              )}
-            </nav>
-          </div>
-        </div>
+    <div className="site-shell">
+      <header className="nav-wrap">
+        <Link href="/" aria-label="Retour à l’accueil">
+          <Brand />
+        </Link>
+        <nav aria-label="Navigation principale">
+          <Link href="/explore" className={url === '/explore' ? 'active' : ''}>
+            Explorer
+          </Link>
+          {user ? (
+            <>
+              <Link href="/dashboard">Mes playlists</Link>
+              <Link href="/playlists/create" className="nav-cta">
+                Créer
+              </Link>
+              <Form route="auth.logout">
+                <button className="avatar-button" type="submit" title="Se déconnecter">
+                  {user.avatarUrl ? <img src={user.avatarUrl} alt="" /> : user.initials}
+                </button>
+              </Form>
+            </>
+          ) : (
+            <a className="discord-button" href="/auth/discord">
+              <span aria-hidden="true">◈</span> Se connecter avec Discord
+            </a>
+          )}
+        </nav>
       </header>
       <main>{children}</main>
-      <Toaster position="top-center" richColors />
-    </>
+      <footer>
+        <Brand />
+        <p>Des choix simples. Des débats sans fin.</p>
+        <div>
+          <Link href="/explore">Explorer</Link>
+          <a href="mailto:hello@passorsmash.fr">Contact</a>
+          <span>© {new Date().getFullYear()}</span>
+        </div>
+      </footer>
+      <Toaster position="top-center" richColors theme="dark" />
+    </div>
   )
 }
