@@ -1,16 +1,16 @@
 <div align="center">
   <img src="public/favicon.svg" width="92" alt="Pass or Smash" />
 
-  # Pass or Smash
+# Pass or Smash
 
-  **Crée une playlist. Partage-la. Laisse les autres trancher.**
+**Crée une playlist. Partage-la. Laisse les autres trancher.**
 
-  Une expérience sociale rapide où chaque image ne laisse que deux choix : **Smash** ou **Pass**.
+Une expérience sociale rapide où chaque image ne laisse que deux choix : **Smash** ou **Pass**.
 
-  [![AdonisJS](https://img.shields.io/badge/AdonisJS-7-5A45FF?style=flat-square)](https://adonisjs.com/)
-  [![React](https://img.shields.io/badge/React-19-149ECA?style=flat-square)](https://react.dev/)
-  [![Inertia](https://img.shields.io/badge/Inertia-3-9553E9?style=flat-square)](https://inertiajs.com/)
-  [![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?style=flat-square)](https://www.typescriptlang.org/)
+[![AdonisJS](https://img.shields.io/badge/AdonisJS-7-5A45FF?style=flat-square)](https://adonisjs.com/)
+[![React](https://img.shields.io/badge/React-19-149ECA?style=flat-square)](https://react.dev/)
+[![Inertia](https://img.shields.io/badge/Inertia-3-9553E9?style=flat-square)](https://inertiajs.com/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?style=flat-square)](https://www.typescriptlang.org/)
 </div>
 
 ---
@@ -37,15 +37,15 @@ Le créateur se connecte avec Discord, ajoute ses images par URL ou import, puis
 
 ## Stack
 
-| Couche | Technologie |
-| --- | --- |
-| Backend | AdonisJS 7, Lucid ORM, VineJS |
-| Frontend | React 19, Inertia.js 3, TypeScript |
-| Base de données | SQLite en développement |
+| Couche           | Technologie                        |
+| ---------------- | ---------------------------------- |
+| Backend          | AdonisJS 7, Lucid ORM, VineJS      |
+| Frontend         | React 19, Inertia.js 3, TypeScript |
+| Base de données  | PostgreSQL 17 + Lucid ORM          |
 | Authentification | Sessions AdonisJS + Discord OAuth2 |
-| Images | AdonisJS Drive + API compatible S3 |
-| Stockage local | MinIO avec Docker Compose |
-| Tests | Japa |
+| Images           | AdonisJS Drive + API compatible S3 |
+| Stockage local   | MinIO avec Docker Compose          |
+| Tests            | Japa                               |
 
 ## Démarrage local
 
@@ -76,7 +76,7 @@ Sous PowerShell :
 Copy-Item .env.example .env
 ```
 
-Génère une clé applicative, démarre MinIO et prépare la base de données :
+Génère une clé applicative, démarre PostgreSQL et MinIO, puis prépare la base de données :
 
 ```bash
 node ace generate:key
@@ -90,7 +90,21 @@ Enfin, lance le serveur de développement :
 npm run dev
 ```
 
-L'application est disponible sur [http://localhost:3333](http://localhost:3333). La console MinIO est accessible sur [http://localhost:9001](http://localhost:9001).
+L'application est disponible sur [http://localhost:3333](http://localhost:3333). PostgreSQL écoute sur le port `5432` et la console MinIO est accessible sur [http://localhost:9001](http://localhost:9001).
+
+## Base de données
+
+Le projet utilise PostgreSQL en développement, pendant les tests et en production. Docker Compose crée automatiquement une base locale `passorsmash` avec les identifiants présents dans `.env.example`.
+
+```env
+DB_HOST=localhost
+DB_PORT=5432
+DB_USER=passorsmash
+DB_PASSWORD=passorsmash-local-secret
+DB_DATABASE=passorsmash
+```
+
+Après toute modification du schéma, applique les migrations avec `node ace migration:run`.
 
 ## Configuration Discord
 
@@ -148,14 +162,14 @@ public/             Ressources publiques et favicon
 resources/views/    Layout HTML racine
 start/              Routes, environnement et middleware
 tests/              Tests fonctionnels
-docker-compose.yml  Stockage MinIO local
+docker-compose.yml  PostgreSQL et stockage MinIO locaux
 ```
 
 ## Mise en production
 
 Avant de déployer :
 
-1. utilise PostgreSQL ou MySQL à la place de SQLite si plusieurs instances doivent fonctionner ensemble ;
+1. configure une instance PostgreSQL managée et renseigne les variables `DB_*` ;
 2. remplace les identifiants MinIO locaux par ceux de ton fournisseur S3 ;
 3. ajoute l'URL Discord de production dans le portail développeur ;
 4. configure `APP_URL`, `DISCORD_REDIRECT_URI` et les secrets via ton hébergeur ;
