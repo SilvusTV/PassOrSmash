@@ -7,11 +7,13 @@ import { createInertiaApp, type ResolvedComponent } from '@inertiajs/react'
 import { TuyauProvider } from '@adonisjs/inertia/react'
 import { resolvePageComponent } from '@adonisjs/inertia/helpers'
 
+const appName = 'Pass or Smash'
+
 export default function render(page: any) {
   return createInertiaApp({
     page,
     render: ReactDOMServer.renderToString,
-    title: (title) => (title ? `${title} | Pass or Smash` : 'Pass or Smash'),
+    title: (title) => (title && title !== appName ? `${title} | ${appName}` : appName),
     resolve: (name) => {
       return resolvePageComponent<ResolvedComponent>(
         `./pages/${name}.tsx`,
