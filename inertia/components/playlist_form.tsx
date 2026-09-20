@@ -1,7 +1,7 @@
 import { useForm } from '@inertiajs/react'
 import axios from 'axios'
 import { useState } from 'react'
-import type { ChangeEvent, FormEvent } from 'react'
+import type { ChangeEvent, DragEvent, FormEvent } from 'react'
 
 type Item = { title: string; description: string; imageUrl: string }
 type Initial = {
@@ -12,6 +12,26 @@ type Initial = {
   items: Item[]
 }
 const blankItem = (): Item => ({ title: '', description: '', imageUrl: '' })
+
+function ImagePreview({ url }: { url: string }) {
+  const [failedUrl, setFailedUrl] = useState('')
+
+  if (!url) return <div className="thumb-preview">IMAGE</div>
+  if (failedUrl === url) {
+    return (
+      <div className="thumb-preview broken-image" role="alert">
+        Image inaccessible
+        <small>Vérifie le lien ou importe le fichier</small>
+      </div>
+    )
+  }
+
+  return (
+    <div className="thumb-preview">
+      <img src={url} alt="Aperçu" onError={() => setFailedUrl(url)} />
+    </div>
+  )
+}
 
 function ImageSource({ value, onChange }: { value: string; onChange: (url: string) => void }) {
   const [uploading, setUploading] = useState(false)
@@ -83,6 +103,9 @@ export default function PlaylistForm({
       items: [blankItem(), blankItem()],
     }
   )
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null)
+  const [dragTargetIndex, setDragTargetIndex] = useState<number | null>(null)
+
   const updateItem = (index: number, field: keyof Item, value: string) =>
     form.setData(
       'items',
@@ -90,6 +113,22 @@ export default function PlaylistForm({
         current === index ? { ...item, [field]: value } : item
       )
     )
+
+  const moveItem = (from: number, to: number) => {
+    if (from === to || to < 0 || to >= form.data.items.length) return
+    const reordered = [...form.data.items]
+    const [item] = reordered.splice(from, 1)
+    reordered.splice(to, 0, item)
+    form.setData('items', reordered)
+  }
+
+  const dropItem = (event: DragEvent<HTMLDivElement>, targetIndex: number) => {
+    event.preventDefault()
+    if (draggedIndex !== null) moveItem(draggedIndex, targetIndex)
+    setDraggedIndex(null)
+    setDragTargetIndex(null)
+  }
+
   const submit = (event: FormEvent) => {
     event.preventDefault()
     form[method](submitUrl)
@@ -171,7 +210,7 @@ export default function PlaylistForm({
               <h2>Les images</h2>
               <p>
                 Ajoute au moins deux images par lien ou importe-les depuis ton appareil. Elles
-                seront présentées dans cet ordre.
+                seront présentées dans cet ordre. Fais glisser les cartes pour les réorganiser.
               </p>
             </div>
             <button
@@ -184,14 +223,49 @@ export default function PlaylistForm({
           </div>
           <div className="items-editor">
             {form.data.items.map((item, index) => (
-              <div className="item-editor" key={index}>
-                <div className="item-index">{String(index + 1).padStart(2, '0')}</div>
-                <div
-                  className="thumb-preview"
-                  style={item.imageUrl ? { backgroundImage: `url(${item.imageUrl})` } : undefined}
-                >
-                  {!item.imageUrl && 'IMAGE'}
+              <div
+                className={`item-editor ${draggedIndex === index ? 'dragging' : ''} ${dragTargetIndex === index ? 'drag-target' : ''}`}
+                key={index}
+                onDragEnter={() => setDragTargetIndex(index)}
+                onDragOver={(event) => event.preventDefault()}
+                onDrop={(event) => dropItem(event, index)}
+                onDragEnd={() => {
+                  setDraggedIndex(null)
+                  setDragTargetIndex(null)
+                }}
+              >
+                <div className="item-order">
+                  <button
+                    type="button"
+                    className="drag-handle"
+                    aria-label={`Déplacer l’image ${index + 1}`}
+                    title="Glisser pour réorganiser"
+                    draggable
+                    onDragStart={() => setDraggedIndex(index)}
+                  >
+                    ⠿
+                  </button>
+                  <div className="item-index">{String(index + 1).padStart(2, '0')}</div>
+                  <div className="order-buttons" aria-label="Modifier la position">
+                    <button
+                      type="button"
+                      disabled={index === 0}
+                      onClick={() => moveItem(index, index - 1)}
+                      aria-label={`Monter l’image ${index + 1}`}
+                    >
+                      ↑
+                    </button>
+                    <button
+                      type="button"
+                      disabled={index === form.data.items.length - 1}
+                      onClick={() => moveItem(index, index + 1)}
+                      aria-label={`Descendre l’image ${index + 1}`}
+                    >
+                      ↓
+                    </button>
+                  </div>
                 </div>
+                <ImagePreview url={item.imageUrl} />
                 <div className="item-fields">
                   <ImageSource
                     value={item.imageUrl}
