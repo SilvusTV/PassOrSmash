@@ -1,6 +1,6 @@
 import { Head } from '@inertiajs/react'
 import PlaylistForm from '~/components/playlist_form'
-export default function CreatePlaylist() {
+export default function CreatePlaylist({ jsonImport = false }: { jsonImport?: boolean }) {
   return (
     <>
       <Head title="Créer une playlist" />
@@ -14,7 +14,7 @@ export default function CreatePlaylist() {
         <p>Prépare le prochain grand débat en quelques minutes.</p>
       </section>
       <div className="builder-wrap">
-        <PlaylistForm submitUrl="/playlists" />
+        <PlaylistForm submitUrl="/playlists" allowJsonImport={jsonImport} />
       </div>
     </>
   )

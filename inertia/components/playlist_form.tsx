@@ -1,6 +1,6 @@
 import { useForm } from '@inertiajs/react'
 import axios from 'axios'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import type { ChangeEvent, DragEvent, FormEvent } from 'react'
 
 type Item = { title: string; description: string; imageUrl: string }
@@ -89,10 +89,12 @@ export default function PlaylistForm({
   initial,
   submitUrl,
   method = 'post',
+  allowJsonImport = false,
 }: {
   initial?: Initial
   submitUrl: string
   method?: 'post' | 'put'
+  allowJsonImport?: boolean
 }) {
   const form = useForm<Initial>(
     initial || {
@@ -105,6 +107,71 @@ export default function PlaylistForm({
   )
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null)
   const [dragTargetIndex, setDragTargetIndex] = useState<number | null>(null)
+  const [jsonOpen, setJsonOpen] = useState(false)
+  const [jsonValue, setJsonValue] = useState('')
+  const [jsonError, setJsonError] = useState('')
+  const [importing, setImporting] = useState(false)
+  const jsonFile = useRef<HTMLInputElement>(null)
+
+  const normalizeImport = (value: unknown): Initial[] => {
+    const entries = Array.isArray(value) ? value : [value]
+    if (!entries.length || entries.length > 50)
+      throw new Error('Le fichier doit contenir entre 1 et 50 playlists.')
+    return entries.map((entry, playlistIndex) => {
+      if (!entry || typeof entry !== 'object')
+        throw new Error(`Playlist ${playlistIndex + 1} invalide.`)
+      const candidate = entry as Partial<Initial>
+      if (typeof candidate.title !== 'string' || !candidate.title.trim())
+        throw new Error(`La playlist ${playlistIndex + 1} n’a pas de titre.`)
+      if (!Array.isArray(candidate.items) || candidate.items.length < 2)
+        throw new Error(`« ${candidate.title} » doit contenir au moins 2 images.`)
+      return {
+        title: candidate.title,
+        description: typeof candidate.description === 'string' ? candidate.description : '',
+        visibility: candidate.visibility === 'private' ? 'private' : 'public',
+        accent: ['lime', 'violet', 'coral', 'sky'].includes(candidate.accent || '')
+          ? candidate.accent!
+          : 'lime',
+        items: candidate.items.map((item, itemIndex) => {
+          if (!item || typeof item !== 'object') throw new Error(`Image ${itemIndex + 1} invalide.`)
+          const image = item as Partial<Item>
+          if (typeof image.title !== 'string' || typeof image.imageUrl !== 'string')
+            throw new Error(`Image ${itemIndex + 1} de « ${candidate.title} » incomplète.`)
+          return {
+            title: image.title,
+            description: typeof image.description === 'string' ? image.description : '',
+            imageUrl: image.imageUrl,
+          }
+        }),
+      }
+    })
+  }
+
+  const importJson = async () => {
+    setJsonError('')
+    try {
+      const playlists = normalizeImport(JSON.parse(jsonValue))
+      if (playlists.length === 1) {
+        form.setData(playlists[0])
+        setJsonOpen(false)
+        return
+      }
+      setImporting(true)
+      await axios.post('/playlists/import', { playlists })
+      window.location.assign('/dashboard')
+    } catch (error) {
+      setJsonError(
+        axios.isAxiosError(error)
+          ? error.response?.data?.message || 'Le serveur a refusé cet import.'
+          : error instanceof SyntaxError
+            ? 'Le JSON n’est pas valide.'
+            : error instanceof Error
+              ? error.message
+              : 'Impossible de lire ce JSON.'
+      )
+      setImporting(false)
+    }
+  }
 
   const updateItem = (index: number, field: keyof Item, value: string) =>
     form.setData(
@@ -135,6 +202,62 @@ export default function PlaylistForm({
   }
   return (
     <form className="builder-form" onSubmit={submit}>
+      {allowJsonImport && (
+        <section className="json-import">
+          <div>
+            <span className="eyebrow">Outil privé</span>
+            <h2>Import JSON</h2>
+            <p>Un objet remplit le formulaire. Un tableau publie jusqu’à 50 playlists d’un coup.</p>
+          </div>
+          <button className="outline-button" type="button" onClick={() => setJsonOpen(!jsonOpen)}>
+            {jsonOpen ? 'Fermer' : 'Importer du JSON'}
+          </button>
+          {jsonOpen && (
+            <div className="json-import-editor">
+              <textarea
+                value={jsonValue}
+                onChange={(event) => setJsonValue(event.target.value)}
+                rows={12}
+                placeholder={
+                  '[{\n  "title": "Les meilleurs…",\n  "description": "…",\n  "visibility": "public",\n  "accent": "lime",\n  "items": [{ "title": "…", "imageUrl": "https://…" }]\n}]'
+                }
+              />
+              <input
+                ref={jsonFile}
+                hidden
+                type="file"
+                accept="application/json,.json"
+                onChange={async (event) => {
+                  const file = event.target.files?.[0]
+                  if (file) setJsonValue(await file.text())
+                }}
+              />
+              <div>
+                <button
+                  className="outline-button"
+                  type="button"
+                  onClick={() => jsonFile.current?.click()}
+                >
+                  Choisir un fichier
+                </button>
+                <button
+                  className="button button-primary"
+                  type="button"
+                  disabled={!jsonValue || importing}
+                  onClick={importJson}
+                >
+                  {importing ? 'Import en cours…' : 'Charger le JSON'}
+                </button>
+              </div>
+              {jsonError && (
+                <p className="upload-error" role="alert">
+                  {jsonError}
+                </p>
+              )}
+            </div>
+          )}
+        </section>
+      )}
       <section className="builder-panel">
         <div className="panel-number">01</div>
         <div className="panel-content">

@@ -26,3 +26,8 @@ export const createPlaylistValidator = vine.create({
  * an existing playlist.
  */
 export const updatePlaylistValidator = createPlaylistValidator
+
+/** A deliberately separate validator for the hidden bulk-import tool. */
+export const importPlaylistsValidator = vine.create({
+  playlists: vine.array(createPlaylistValidator.schema).minLength(1).maxLength(50),
+})

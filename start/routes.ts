@@ -37,6 +37,7 @@ router
     router.get('/dashboard', [controllers.Playlists, 'index']).as('playlists.index')
     router.get('/playlists/create', [controllers.Playlists, 'create']).as('playlists.create')
     router.post('/playlists', [controllers.Playlists, 'store']).as('playlists.store')
+    router.post('/playlists/import', [controllers.Playlists, 'import']).as('playlists.import')
     router.post('/uploads/images', [controllers.Upload, 'store']).as('uploads.images.store')
     router.get('/p/:slug/edit', [controllers.Playlists, 'edit']).as('playlists.edit')
     router.put('/p/:slug', [controllers.Playlists, 'update']).as('playlists.update')

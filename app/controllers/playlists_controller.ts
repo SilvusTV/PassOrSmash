@@ -1,8 +1,50 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import Playlist from '#models/playlist'
 import PlaylistItem from '#models/playlist_item'
-import { createPlaylistValidator } from '#validators/playlist'
+import { createPlaylistValidator, importPlaylistsValidator } from '#validators/playlist'
 import string from '@adonisjs/core/helpers/string'
+import db from '@adonisjs/lucid/services/db'
+import type { ModelAssignOptions } from '@adonisjs/lucid/types/model'
+
+type PlaylistPayload = Awaited<ReturnType<typeof createPlaylistValidator.validate>>
+
+async function uniqueSlug(title: string, options?: ModelAssignOptions) {
+  const base = string.slug(title) || string.random(8).toLowerCase()
+  let slug = base
+  while (await Playlist.query({ client: options?.client }).where('slug', slug).first())
+    slug = `${base}-${string.random(5).toLowerCase()}`
+  return slug
+}
+
+async function persistPlaylist(
+  userId: number,
+  payload: PlaylistPayload,
+  options?: ModelAssignOptions
+) {
+  const slug = await uniqueSlug(payload.title, options)
+  const playlist = await Playlist.create(
+    {
+      userId,
+      title: payload.title,
+      description: payload.description || null,
+      isPublic: payload.visibility === 'public',
+      accent: payload.accent || 'lime',
+      slug,
+    },
+    options
+  )
+  await PlaylistItem.createMany(
+    payload.items.map((item, position) => ({
+      playlistId: playlist.id,
+      title: item.title,
+      description: item.description || null,
+      imageUrl: item.imageUrl,
+      position,
+    })),
+    options
+  )
+  return playlist
+}
 
 export default class PlaylistsController {
   /**
@@ -40,8 +82,8 @@ export default class PlaylistsController {
   /**
    * Display form to create a new record
    */
-  async create({ inertia }: HttpContext) {
-    return inertia.render('playlists/create', {})
+  async create({ inertia, request }: HttpContext) {
+    return inertia.render('playlists/create', { jsonImport: request.input('json') === 'true' })
   }
 
   /**
@@ -49,28 +91,23 @@ export default class PlaylistsController {
    */
   async store({ request, auth, response, session }: HttpContext) {
     const payload = await request.validateUsing(createPlaylistValidator)
-    const base = string.slug(payload.title) || string.random(8)
-    let slug = base
-    while (await Playlist.findBy('slug', slug)) slug = `${base}-${string.random(5).toLowerCase()}`
-    const playlist = await Playlist.create({
-      userId: auth.user!.id,
-      title: payload.title,
-      description: payload.description || null,
-      isPublic: payload.visibility === 'public',
-      accent: payload.accent || 'lime',
-      slug,
-    })
-    await PlaylistItem.createMany(
-      payload.items.map((item, position) => ({
-        playlistId: playlist.id,
-        title: item.title,
-        description: item.description || null,
-        imageUrl: item.imageUrl,
-        position,
-      }))
-    )
+    const playlist = await persistPlaylist(auth.user!.id, payload)
     session.flash('success', 'Playlist créée. Elle est prête à être partagée !')
-    return response.redirect().toRoute('playlists.show', { slug })
+    return response.redirect().toRoute('playlists.show', { slug: playlist.slug })
+  }
+
+  /** Create up to 50 playlists from the opt-in JSON import screen. */
+  async import({ request, auth, response, session }: HttpContext) {
+    const { playlists } = await request.validateUsing(importPlaylistsValidator)
+    await db.transaction(async (trx) => {
+      for (const payload of playlists)
+        await persistPlaylist(auth.user!.id, payload, { client: trx })
+    })
+    session.flash(
+      'success',
+      `${playlists.length} playlist${playlists.length > 1 ? 's' : ''} importée${playlists.length > 1 ? 's' : ''}.`
+    )
+    return response.redirect().toRoute('playlists.index')
   }
 
   /**
@@ -89,6 +126,7 @@ export default class PlaylistsController {
         description: playlist.description || undefined,
         accent: playlist.accent as 'lime' | 'violet' | 'coral' | 'sky',
         isPublic: playlist.isPublic,
+        updatedAt: playlist.updatedAt?.toISO() ?? undefined,
       },
       items: items.map((item) => ({
         id: item.id,

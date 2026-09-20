@@ -681,6 +681,40 @@ footer > div {
   flex-direction: column;
   gap: 26px;
 }
+.json-import {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 24px;
+  align-items: center;
+  padding: 28px;
+  border: 2px dashed var(--violet);
+  background: #eeeaff;
+}
+.json-import h2 {
+  margin: 7px 0 5px;
+  font: 800 25px 'Manrope';
+}
+.json-import p {
+  margin: 0;
+  color: #55516b;
+}
+.json-import-editor {
+  display: grid;
+  grid-column: 1/-1;
+  gap: 14px;
+}
+.json-import-editor textarea {
+  width: 100%;
+  resize: vertical;
+  min-height: 230px;
+  font-family: Consolas, monospace;
+  font-size: 13px;
+}
+.json-import-editor > div {
+  display: flex;
+  justify-content: flex-end;
+  gap: 14px;
+}
 .builder-panel {
   display: grid;
   grid-template-columns: 90px 1fr;
@@ -972,6 +1006,65 @@ footer > div {
   padding: 35px clamp(24px, 5vw, 72px) 50px;
   background: var(--ink);
   color: #fff;
+}
+.playlist-editorial {
+  display: grid;
+  grid-template-columns: 0.8fr 1.2fr;
+  gap: clamp(50px, 9vw, 130px);
+  padding: 100px clamp(24px, 6vw, 92px);
+  background: #fff;
+  border-top: 1px solid var(--ink);
+}
+.playlist-editorial-heading {
+  position: sticky;
+  top: 40px;
+  align-self: start;
+}
+.playlist-editorial h2 {
+  margin: 18px 0;
+  font: 800 clamp(38px, 5vw, 68px)/0.98 'Manrope';
+  letter-spacing: -3px;
+}
+.playlist-editorial-heading > p {
+  max-width: 620px;
+  color: #55554f;
+  font-size: 17px;
+  line-height: 1.7;
+}
+.playlist-entry-list h3 {
+  margin: 0 0 18px;
+  text-transform: uppercase;
+  font-size: 11px;
+  letter-spacing: 1.4px;
+}
+.playlist-entry-list ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--ink);
+}
+.playlist-entry-list li {
+  display: grid;
+  grid-template-columns: 74px 1fr;
+  gap: 18px;
+  align-items: center;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--line);
+}
+.playlist-entry-list img {
+  width: 74px;
+  height: 58px;
+  object-fit: cover;
+  background: #ddd;
+}
+.playlist-entry-list strong {
+  font: 800 16px 'Manrope';
+}
+.playlist-entry-list p {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
 }
 .play-top {
   display: flex;
@@ -1486,6 +1579,12 @@ footer > div {
     border-top: 1px solid #444;
     gap: 40px;
   }
+  .playlist-editorial {
+    grid-template-columns: 1fr;
+  }
+  .playlist-editorial-heading {
+    position: static;
+  }
   .item-editor {
     grid-template-columns: 50px 100px 1fr 28px;
   }
@@ -1617,6 +1716,17 @@ footer > div {
     padding: 0 12px;
     margin-top: 30px;
   }
+  .json-import {
+    grid-template-columns: 1fr;
+    padding: 20px;
+  }
+  .json-import-editor {
+    grid-column: 1;
+  }
+  .json-import-editor > div {
+    align-items: stretch;
+    flex-direction: column;
+  }
   .builder-panel {
     grid-template-columns: 1fr;
   }
@@ -1682,6 +1792,9 @@ footer > div {
   }
   .play-detail {
     padding: 25px;
+  }
+  .playlist-editorial {
+    padding: 65px 20px;
   }
   .vote-actions {
     gap: 10px;

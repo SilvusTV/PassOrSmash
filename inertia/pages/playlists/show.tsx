@@ -8,6 +8,7 @@ type Playlist = {
   description?: string
   accent: string
   isPublic: boolean
+  updatedAt?: string
 }
 type Item = {
   id: number
@@ -17,6 +18,36 @@ type Item = {
   smashes: number
   passes: number
 }
+
+function PlaylistEditorial({ playlist, items }: { playlist: Playlist; items: Item[] }) {
+  return (
+    <section className="playlist-editorial" aria-labelledby="playlist-about-title">
+      <div className="playlist-editorial-heading">
+        <span className="eyebrow">À propos de cette playlist</span>
+        <h2 id="playlist-about-title">{playlist.title}</h2>
+        <p>
+          {playlist.description ||
+            `Découvre cette sélection ${playlist.title} et donne ton avis, image après image.`}
+        </p>
+      </div>
+      <div className="playlist-entry-list">
+        <h3>Au programme</h3>
+        <ol>
+          {items.map((entry) => (
+            <li key={entry.id}>
+              <img src={entry.imageUrl} alt="" loading="lazy" />
+              <div>
+                <strong>{entry.title}</strong>
+                {entry.description && <p>{entry.description}</p>}
+              </div>
+            </li>
+          ))}
+        </ol>
+      </div>
+    </section>
+  )
+}
+
 export default function Show({
   playlist,
   items,
@@ -30,6 +61,27 @@ export default function Show({
   const [done, setDone] = useState(false)
   const [votes, setVotes] = useState<Record<number, 'smash' | 'pass'>>({})
   const item = items[index]
+  const seoDescription =
+    playlist.description ||
+    `Joue gratuitement à la playlist Smash or Pass « ${playlist.title} » et compare tes choix avec ceux de la communauté.`
+  const structuredData = {
+    '@context': 'https://schema.org',
+    '@type': 'CollectionPage',
+    'name': `${playlist.title} — Smash or Pass`,
+    'description': seoDescription,
+    'url': `https://passorsmash.fr/p/${playlist.slug}`,
+    ...(playlist.updatedAt ? { dateModified: playlist.updatedAt } : {}),
+    'mainEntity': {
+      '@type': 'ItemList',
+      'numberOfItems': items.length,
+      'itemListElement': items.map((entry, position) => ({
+        '@type': 'ListItem',
+        'position': position + 1,
+        'name': entry.title,
+        'image': entry.imageUrl,
+      })),
+    },
+  }
   const vote = (choice: 'smash' | 'pass') => {
     router.post(
       '/vote',
@@ -67,6 +119,7 @@ export default function Show({
           }
           path={`/p/${playlist.slug}`}
           noIndex={!playlist.isPublic}
+          structuredData={structuredData}
         />
         <section className="results-page">
           <span className="eyebrow">Verdict final</span>
@@ -123,14 +176,12 @@ export default function Show({
   return (
     <>
       <Seo
-        title={`${playlist.title} — Smash ou Pass`}
-        description={
-          playlist.description ||
-          `Donne ton verdict sur ${playlist.title} dans ce jeu Smash or Pass gratuit.`
-        }
+        title={`${playlist.title} — jeu Smash ou Pass`}
+        description={seoDescription}
         path={`/p/${playlist.slug}`}
         image={item.imageUrl}
         noIndex={!playlist.isPublic}
+        structuredData={structuredData}
       />
       <section className={`play-page accent-${playlist.accent}`}>
         <div className="play-top">
@@ -189,6 +240,7 @@ export default function Show({
           </button>
         </div>
       </section>
+      <PlaylistEditorial playlist={playlist} items={items} />
     </>
   )
 }
