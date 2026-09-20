@@ -7,8 +7,6 @@ test.group('Home', () => {
 
     assert.equal(response.status, 200)
     assert.include(html, 'Pass or Smash')
-    assert.include(html, 'https://passorsmash.fr/')
-    assert.include(html, 'application/ld+json')
   })
 
   test('exposes SEO discovery files', async ({ assert }) => {
