@@ -27,6 +27,7 @@ export default function Show({
 }) {
   const [index, setIndex] = useState(0)
   const [done, setDone] = useState(false)
+  const [votes, setVotes] = useState<Record<number, 'smash' | 'pass'>>({})
   const item = items[index]
   const vote = (choice: 'smash' | 'pass') => {
     router.post(
@@ -35,7 +36,11 @@ export default function Show({
       {
         preserveScroll: true,
         preserveState: true,
-        onSuccess: () => (index < items.length - 1 ? setIndex(index + 1) : setDone(true)),
+        onSuccess: () => {
+          setVotes((current) => ({ ...current, [item.id]: choice }))
+          if (index < items.length - 1) setIndex(index + 1)
+          else setDone(true)
+        },
       }
     )
   }
@@ -60,19 +65,31 @@ export default function Show({
           <h1>Le classement.</h1>
           <p>Tu as donné ton avis sur les {items.length} images.</p>
           <div className="results-list">
-            {ranked.slice(0, 5).map((entry, rank) => (
-              <article key={entry.id}>
-                <b>#{rank + 1}</b>
-                <img src={entry.imageUrl} alt="" />
-                <div>
-                  <h2>{entry.title}</h2>
-                  <span>
-                    {Math.round((entry.smashes / Math.max(1, entry.smashes + entry.passes)) * 100)}%
-                    Smash
-                  </span>
-                </div>
-              </article>
-            ))}
+            {ranked.map((entry, rank) => {
+              const personalVote = votes[entry.id]
+              return (
+                <article
+                  className={personalVote ? `personal-${personalVote}` : undefined}
+                  key={entry.id}
+                >
+                  <b>#{rank + 1}</b>
+                  <img src={entry.imageUrl} alt="" />
+                  <div className="result-copy">
+                    <h2>{entry.title}</h2>
+                    <span>
+                      {Math.round(
+                        (entry.smashes / Math.max(1, entry.smashes + entry.passes)) * 100
+                      )}
+                      % Smash dans la communauté
+                    </span>
+                  </div>
+                  <strong className={`personal-vote ${personalVote || ''}`}>
+                    <small>TON CHOIX</small>
+                    {personalVote === 'smash' ? '♥ SMASH' : '✕ PASS'}
+                  </strong>
+                </article>
+              )
+            })}
           </div>
           <div className="results-actions">
             <button
@@ -80,6 +97,7 @@ export default function Show({
               onClick={() => {
                 setIndex(0)
                 setDone(false)
+                setVotes({})
               }}
             >
               Rejouer

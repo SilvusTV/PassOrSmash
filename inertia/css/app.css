@@ -1098,7 +1098,8 @@ footer > div {
   letter-spacing: 1px;
 }
 .vote-pass {
-  background: #fff;
+  background: #d93f4b;
+  color: #fff;
 }
 .vote-smash {
   background: var(--lime);
@@ -1117,12 +1118,28 @@ footer > div {
   margin: 40px 0;
 }
 .results-list article {
+  position: relative;
   display: grid;
-  grid-template-columns: 50px 90px 1fr;
+  grid-template-columns: 50px 90px 1fr auto;
   gap: 20px;
   align-items: center;
   border-top: 1px solid var(--line);
   padding: 13px;
+  overflow: hidden;
+}
+.results-list article::after {
+  position: absolute;
+  inset: 0 0 0 auto;
+  z-index: -1;
+  width: 44%;
+  content: '';
+  pointer-events: none;
+}
+.results-list article.personal-smash::after {
+  background: linear-gradient(90deg, transparent, rgb(194 255 51 / 20%));
+}
+.results-list article.personal-pass::after {
+  background: linear-gradient(90deg, transparent, rgb(217 63 75 / 17%));
 }
 .results-list img {
   width: 90px;
@@ -1136,6 +1153,25 @@ footer > div {
 .results-list span {
   font-size: 12px;
   color: var(--muted);
+}
+.personal-vote {
+  position: relative;
+  display: grid;
+  min-width: 95px;
+  gap: 2px;
+  justify-items: end;
+  font: 900 13px 'Manrope';
+}
+.personal-vote small {
+  color: var(--muted);
+  font: 700 8px 'DM Sans';
+  letter-spacing: 1px;
+}
+.personal-vote.smash {
+  color: #4d7500;
+}
+.personal-vote.pass {
+  color: #b42635;
 }
 .results-actions {
   display: flex;
@@ -1375,6 +1411,20 @@ footer > div {
   }
   .results-page > h1 {
     font-size: 52px;
+  }
+  .results-list article {
+    grid-template-columns: 34px 72px 1fr;
+    gap: 10px;
+    padding: 12px 4px;
+  }
+  .results-list img {
+    width: 72px;
+    height: 58px;
+  }
+  .personal-vote {
+    grid-column: 2/-1;
+    justify-items: start;
+    padding-left: 82px;
   }
   .full-page {
     padding: 30px 18px;
