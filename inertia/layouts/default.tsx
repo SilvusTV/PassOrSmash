@@ -1,8 +1,9 @@
 /* eslint-disable @adonisjs/prefer-adonisjs-inertia-link */
 import { toast, Toaster } from 'sonner'
-import { Link, usePage } from '@inertiajs/react'
+import { Head, Link, usePage } from '@inertiajs/react'
 import { type ReactElement, useEffect } from 'react'
 import { Form } from '@adonisjs/inertia/react'
+import Analytics from '~/components/analytics'
 
 function Brand() {
   return (
@@ -18,6 +19,13 @@ export default function Layout({ children }: { children: ReactElement }) {
   const { url, flash, props } = usePage()
   const user = props.user as
     { fullName?: string; username?: string; avatarUrl?: string; initials?: string } | undefined
+  const isPrivatePage =
+    url.startsWith('/dashboard') ||
+    url.startsWith('/auth/') ||
+    url.startsWith('/login') ||
+    url.startsWith('/signup') ||
+    url.startsWith('/playlists/') ||
+    url.endsWith('/edit')
 
   useEffect(() => {
     toast.dismiss()
@@ -29,6 +37,11 @@ export default function Layout({ children }: { children: ReactElement }) {
 
   return (
     <div className="site-shell">
+      {isPrivatePage && (
+        <Head>
+          <meta name="robots" content="noindex, nofollow" />
+        </Head>
+      )}
       <header className="nav-wrap">
         <Link href="/" aria-label="Retour à l’accueil">
           <Brand />
@@ -67,6 +80,7 @@ export default function Layout({ children }: { children: ReactElement }) {
         </div>
       </footer>
       <Toaster position="top-center" richColors theme="dark" />
+      <Analytics />
     </div>
   )
 }

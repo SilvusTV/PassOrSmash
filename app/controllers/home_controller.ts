@@ -1,6 +1,7 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import Playlist from '#models/playlist'
 import PlaylistItem from '#models/playlist_item'
+import { appUrl } from '#config/app'
 
 async function playlistCards(playlists: Playlist[]) {
   return Promise.all(
@@ -39,16 +40,37 @@ export default class HomeController {
   }
 
   async robots({ response }: HttpContext) {
-    response.type('text/plain').send('User-agent: *\nAllow: /\nSitemap: /sitemap.xml')
+    const origin = appUrl.replace(/\/$/, '')
+    response.header('Cache-Control', 'public, max-age=3600')
+    response
+      .type('text/plain')
+      .send(
+        `User-agent: *\nAllow: /\nDisallow: /dashboard\nDisallow: /playlists/\nDisallow: /auth/\nDisallow: /login\nDisallow: /signup\nSitemap: ${origin}/sitemap.xml`
+      )
   }
 
   async sitemap({ response }: HttpContext) {
-    const playlists = await Playlist.query().where('isPublic', true).select(['slug'])
-    const urls = ['/', '/explore', ...playlists.map((playlist) => `/p/${playlist.slug}`)]
+    const origin = appUrl.replace(/\/$/, '')
+    const playlists = await Playlist.query().where('isPublic', true).select(['slug', 'updatedAt'])
+    const staticUrls = [
+      { path: '/', priority: '1.0', changefreq: 'weekly' },
+      { path: '/explore', priority: '0.9', changefreq: 'daily' },
+    ]
+    const urls = [
+      ...staticUrls.map(
+        ({ path, priority, changefreq }) =>
+          `<url><loc>${origin}${path}</loc><changefreq>${changefreq}</changefreq><priority>${priority}</priority></url>`
+      ),
+      ...playlists.map(
+        (playlist) =>
+          `<url><loc>${origin}/p/${encodeURIComponent(playlist.slug)}</loc>${playlist.updatedAt ? `<lastmod>${playlist.updatedAt.toISODate()}</lastmod>` : ''}<changefreq>weekly</changefreq><priority>0.7</priority></url>`
+      ),
+    ]
     response
+      .header('Cache-Control', 'public, max-age=3600')
       .type('application/xml')
       .send(
-        `<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${urls.map((url) => `<url><loc>${url}</loc></url>`).join('')}</urlset>`
+        `<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${urls.join('')}</urlset>`
       )
   }
 }

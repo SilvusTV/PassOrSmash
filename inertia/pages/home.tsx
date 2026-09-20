@@ -1,5 +1,6 @@
 /* eslint-disable @adonisjs/prefer-adonisjs-inertia-link */
-import { Head, Link } from '@inertiajs/react'
+import { Link } from '@inertiajs/react'
+import Seo from '~/components/seo'
 
 type Card = {
   id: number
@@ -51,12 +52,21 @@ export default function Home({ featured = [] }: { featured: Card[] }) {
   const cards = featured.length ? featured : demoCards
   return (
     <>
-      <Head title="Crée, partage et tranche">
-        <meta
-          name="description"
-          content="Crée gratuitement une playlist d’images, partage-la et découvre les choix Smash ou Pass de tes amis."
-        />
-      </Head>
+      <Seo
+        title="Pass or Smash"
+        description="Crée gratuitement un jeu Smash or Pass avec tes images, partage-le et découvre les choix de tes amis ou de ta communauté."
+        path="/"
+        structuredData={{
+          '@context': 'https://schema.org',
+          '@type': 'WebApplication',
+          'name': 'Pass or Smash',
+          'url': 'https://passorsmash.fr/',
+          'applicationCategory': 'GameApplication',
+          'operatingSystem': 'Web',
+          'inLanguage': 'fr-FR',
+          'offers': { '@type': 'Offer', 'price': '0', 'priceCurrency': 'EUR' },
+        }}
+      />
       <section className="hero-section">
         <div className="hero-copy">
           <span className="eyebrow">

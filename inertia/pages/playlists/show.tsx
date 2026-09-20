@@ -1,6 +1,7 @@
 /* eslint-disable @adonisjs/prefer-adonisjs-inertia-link */
-import { Head, Link, router } from '@inertiajs/react'
+import { Link, router } from '@inertiajs/react'
 import { useState } from 'react'
+import Seo from '~/components/seo'
 type Playlist = {
   slug: string
   title: string
@@ -59,7 +60,14 @@ export default function Show({
     )
     return (
       <>
-        <Head title={`Résultats — ${playlist.title}`} />
+        <Seo
+          title={`Résultats — ${playlist.title}`}
+          description={
+            playlist.description || `Découvre les résultats de la playlist ${playlist.title}.`
+          }
+          path={`/p/${playlist.slug}`}
+          noIndex={!playlist.isPublic}
+        />
         <section className="results-page">
           <span className="eyebrow">Verdict final</span>
           <h1>Le classement.</h1>
@@ -114,12 +122,16 @@ export default function Show({
   const percent = total ? Math.round((item.smashes / total) * 100) : 50
   return (
     <>
-      <Head title={`${playlist.title} — Smash ou Pass`}>
-        <meta
-          name="description"
-          content={playlist.description || `Donne ton verdict sur ${playlist.title}.`}
-        />
-      </Head>
+      <Seo
+        title={`${playlist.title} — Smash ou Pass`}
+        description={
+          playlist.description ||
+          `Donne ton verdict sur ${playlist.title} dans ce jeu Smash or Pass gratuit.`
+        }
+        path={`/p/${playlist.slug}`}
+        image={item.imageUrl}
+        noIndex={!playlist.isPublic}
+      />
       <section className={`play-page accent-${playlist.accent}`}>
         <div className="play-top">
           <div>

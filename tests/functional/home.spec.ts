@@ -7,6 +7,8 @@ test.group('Home', () => {
 
     assert.equal(response.status, 200)
     assert.include(html, 'Pass or Smash')
+    assert.include(html, 'https://passorsmash.fr/')
+    assert.include(html, 'application/ld+json')
   })
 
   test('exposes SEO discovery files', async ({ assert }) => {
@@ -14,7 +16,7 @@ test.group('Home', () => {
     const sitemap = await fetch('http://localhost:3333/sitemap.xml')
 
     assert.equal(robots.status, 200)
-    assert.include(await robots.text(), 'Sitemap: /sitemap.xml')
+    assert.include(await robots.text(), '/sitemap.xml')
     assert.equal(sitemap.status, 200)
     assert.include(await sitemap.text(), '<urlset')
   })

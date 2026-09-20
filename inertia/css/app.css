@@ -1439,3 +1439,48 @@ footer > div {
     transition: none !important;
   }
 }
+
+.consent-banner {
+  position: fixed;
+  z-index: 1000;
+  right: 20px;
+  bottom: 20px;
+  max-width: 480px;
+  padding: 20px;
+  border: 1px solid var(--line);
+  background: #151516;
+  color: #fff;
+  box-shadow: 8px 8px 0 var(--lime);
+}
+.consent-banner p {
+  margin: 0 0 16px;
+  font-size: 14px;
+  line-height: 1.55;
+}
+.consent-banner div {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+.consent-banner button {
+  padding: 9px 15px;
+  border: 1px solid #fff;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+.consent-refuse {
+  background: transparent;
+  color: #fff;
+}
+.consent-accept {
+  background: var(--lime);
+  color: #0b0b0c;
+}
+@media (max-width: 560px) {
+  .consent-banner {
+    right: 12px;
+    bottom: 12px;
+    left: 12px;
+  }
+}

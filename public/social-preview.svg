@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" role="img" aria-labelledby="title desc">
+  <title id="title">Pass or Smash</title>
+  <desc id="desc">Crée, partage et tranche</desc>
+  <rect width="1200" height="630" fill="#0b0b0c"/>
+  <path fill="#caff38" d="M0 0h150v150H0z"/>
+  <path fill="#ff5f45" d="M1050 480h150v150h-150z"/>
+  <text x="600" y="270" text-anchor="middle" fill="#fff" font-family="Arial Black,Arial,sans-serif" font-size="116" font-weight="900">PASS <tspan fill="#caff38">OR</tspan> SMASH</text>
+  <text x="600" y="380" text-anchor="middle" fill="#fff" font-family="Arial,sans-serif" font-size="48">CRÉE · PARTAGE · TRANCHE</text>
+  <text x="600" y="480" text-anchor="middle" fill="#caff38" font-family="Arial,sans-serif" font-size="32">passorsmash.fr</text>
+</svg>

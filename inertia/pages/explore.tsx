@@ -1,5 +1,6 @@
 /* eslint-disable @adonisjs/prefer-adonisjs-inertia-link */
-import { Head, Link } from '@inertiajs/react'
+import { Link } from '@inertiajs/react'
+import Seo from '~/components/seo'
 
 type Card = {
   id: number
@@ -14,7 +15,11 @@ type Card = {
 export default function Explore({ playlists }: { playlists: Card[] }) {
   return (
     <>
-      <Head title="Explorer les playlists" />
+      <Seo
+        title="Jeux Smash or Pass à découvrir"
+        description="Découvre les playlists Smash or Pass publiques, vote gratuitement et compare tes choix avec ceux de la communauté."
+        path="/explore"
+      />
       <section className="page-hero">
         <span className="eyebrow">Place au verdict</span>
         <h1>

@@ -11,6 +11,7 @@ export default function render(page: any) {
   return createInertiaApp({
     page,
     render: ReactDOMServer.renderToString,
+    title: (title) => (title ? `${title} | Pass or Smash` : 'Pass or Smash'),
     resolve: (name) => {
       return resolvePageComponent<ResolvedComponent>(
         `./pages/${name}.tsx`,
