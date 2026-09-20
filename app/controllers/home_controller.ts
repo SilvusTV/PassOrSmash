@@ -39,6 +39,10 @@ export default class HomeController {
     return inertia.render('explore', { playlists: await playlistCards(playlists) })
   }
 
+  async about({ inertia }: HttpContext) {
+    return inertia.render('about', {})
+  }
+
   async robots({ response }: HttpContext) {
     const origin = appUrl.replace(/\/$/, '')
     response.header('Cache-Control', 'public, max-age=3600')
@@ -54,6 +58,7 @@ export default class HomeController {
     const playlists = await Playlist.query().where('isPublic', true).select(['slug', 'updatedAt'])
     const staticUrls = [
       { path: '/', priority: '1.0', changefreq: 'weekly' },
+      { path: '/jeu-smash-or-pass', priority: '0.9', changefreq: 'monthly' },
       { path: '/explore', priority: '0.9', changefreq: 'daily' },
     ]
     const urls = [

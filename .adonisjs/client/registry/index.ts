@@ -12,6 +12,12 @@ const routes = {
     tokens: [{"old":"/","type":0,"val":"/","end":""}],
     types: placeholder as Registry['home']['types'],
   },
+  'about': {
+    methods: ["GET","HEAD"],
+    pattern: '/jeu-smash-or-pass',
+    tokens: [{"old":"/jeu-smash-or-pass","type":0,"val":"jeu-smash-or-pass","end":""}],
+    types: placeholder as Registry['about']['types'],
+  },
   'explore': {
     methods: ["GET","HEAD"],
     pattern: '/explore',

@@ -5,6 +5,7 @@ type ParamValue = string | number | bigint | boolean
 export type ScannedRoutes = {
   ALL: {
     'home': { paramsTuple?: []; params?: {} }
+    'about': { paramsTuple?: []; params?: {} }
     'explore': { paramsTuple?: []; params?: {} }
     'home.robots': { paramsTuple?: []; params?: {} }
     'home.sitemap': { paramsTuple?: []; params?: {} }
@@ -28,6 +29,7 @@ export type ScannedRoutes = {
   }
   GET: {
     'home': { paramsTuple?: []; params?: {} }
+    'about': { paramsTuple?: []; params?: {} }
     'explore': { paramsTuple?: []; params?: {} }
     'home.robots': { paramsTuple?: []; params?: {} }
     'home.sitemap': { paramsTuple?: []; params?: {} }
@@ -43,6 +45,7 @@ export type ScannedRoutes = {
   }
   HEAD: {
     'home': { paramsTuple?: []; params?: {} }
+    'about': { paramsTuple?: []; params?: {} }
     'explore': { paramsTuple?: []; params?: {} }
     'home.robots': { paramsTuple?: []; params?: {} }
     'home.sitemap': { paramsTuple?: []; params?: {} }

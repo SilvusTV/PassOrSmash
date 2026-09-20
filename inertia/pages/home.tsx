@@ -200,6 +200,67 @@ export default function Home({ featured = [] }: { featured: Card[] }) {
           ))}
         </div>
       </section>
+      <section className="seo-intro">
+        <div className="seo-intro-lead">
+          <span className="eyebrow">
+            <i /> Un jeu simple, mille sujets
+          </span>
+          <h2>
+            Le jeu Smash or Pass,
+            <br />
+            <em>version créative.</em>
+          </h2>
+        </div>
+        <div className="seo-intro-copy">
+          <p>
+            <strong>Pass or Smash</strong> est un jeu de choix en ligne gratuit : une image
+            apparaît, tu donnes ton avis en un clic, puis tu passes à la suivante. Crée un quiz
+            photo sur les voyages, la cuisine, le cinéma, le gaming, la mode ou n’importe quel sujet
+            qui anime ta communauté.
+          </p>
+          <p>
+            Aucun téléchargement n’est nécessaire et les participants peuvent voter sans créer de
+            compte. À la fin, les résultats révèlent les favoris du groupe et lancent les débats.
+            C’est rapide à créer, facile à partager sur Discord et amusant à jouer entre amis ou en
+            communauté.
+          </p>
+          <Link href="/jeu-smash-or-pass" className="outline-button">
+            Découvrir le jeu <span>→</span>
+          </Link>
+        </div>
+      </section>
+      <section className="home-faq" aria-labelledby="faq-title">
+        <div>
+          <span className="eyebrow">Questions fréquentes</span>
+          <h2 id="faq-title">
+            Avant de
+            <br />
+            te lancer.
+          </h2>
+        </div>
+        <div className="faq-list">
+          <details open>
+            <summary>Le jeu Smash or Pass est-il gratuit ?</summary>
+            <p>
+              Oui. Tu peux créer, partager et jouer gratuitement, directement depuis ton navigateur.
+            </p>
+          </details>
+          <details>
+            <summary>Faut-il un compte pour voter ?</summary>
+            <p>
+              Non. Les joueurs ouvrent simplement ton lien et commencent à choisir entre Pass et
+              Smash.
+            </p>
+          </details>
+          <details>
+            <summary>Quels thèmes peut-on utiliser ?</summary>
+            <p>
+              Presque tous : nourriture, destinations, personnages, objets, looks, jeux vidéo ou
+              créations originales, dans le respect de chacun.
+            </p>
+          </details>
+        </div>
+      </section>
       <section className="final-cta">
         <span className="eyebrow">Prêt à semer le chaos ?</span>
         <h2>

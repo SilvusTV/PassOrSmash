@@ -19,6 +19,18 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/home_controller').default['index']>>>
     }
   }
+  'about': {
+    methods: ["GET","HEAD"]
+    pattern: '/jeu-smash-or-pass'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/home_controller').default['about']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/home_controller').default['about']>>>
+    }
+  }
   'explore': {
     methods: ["GET","HEAD"]
     pattern: '/explore'

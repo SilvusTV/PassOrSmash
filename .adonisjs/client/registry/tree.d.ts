@@ -6,6 +6,7 @@ export interface ApiDefinition {
     robots: typeof routes['home.robots']
     sitemap: typeof routes['home.sitemap']
   }
+  about: typeof routes['about']
   explore: typeof routes['explore']
   playlists: {
     show: typeof routes['playlists.show']

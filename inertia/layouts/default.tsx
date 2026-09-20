@@ -47,6 +47,9 @@ export default function Layout({ children }: { children: ReactElement }) {
           <Brand />
         </Link>
         <nav aria-label="Navigation principale">
+          <Link href="/jeu-smash-or-pass" className={url === '/jeu-smash-or-pass' ? 'active' : ''}>
+            Le jeu
+          </Link>
           <Link href="/explore" className={url === '/explore' ? 'active' : ''}>
             Explorer
           </Link>
@@ -74,6 +77,7 @@ export default function Layout({ children }: { children: ReactElement }) {
         <Brand />
         <p>Des choix simples. Des débats sans fin.</p>
         <div>
+          <Link href="/jeu-smash-or-pass">Le jeu</Link>
           <Link href="/explore">Explorer</Link>
           <a href="mailto:hello@passorsmash.fr">Contact</a>
           <span>© {new Date().getFullYear()}</span>
