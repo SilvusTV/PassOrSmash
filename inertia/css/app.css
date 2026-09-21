@@ -1,4 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap');
 :root {
   --ink: #0b0b0c;
   --paper: #f4f2ec;
@@ -237,9 +236,13 @@ button {
 }
 .demo-image {
   height: 340px;
-  background: url('https://images.unsplash.com/photo-1533104816931-20fa691ff6ca?auto=format&fit=crop&w=1000&q=85')
-    center/cover;
   position: relative;
+  overflow: hidden;
+}
+.demo-image > img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 .live-pill,
 .status-pill {

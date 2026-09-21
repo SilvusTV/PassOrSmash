@@ -94,6 +94,14 @@ export default function Home({ featured = [] }: { featured: Card[] }) {
         <div className="hero-demo" aria-label="Aperçu du jeu">
           <div className="demo-card">
             <div className="demo-image">
+              <img
+                src="https://images.unsplash.com/photo-1533104816931-20fa691ff6ca?auto=format&fit=crop&w=720&q=75"
+                alt="Côte amalfitaine"
+                fetchPriority="high"
+                decoding="async"
+                width="720"
+                height="480"
+              />
               <span className="live-pill">EN COURS</span>
               <div className="image-counter">04 / 12</div>
             </div>

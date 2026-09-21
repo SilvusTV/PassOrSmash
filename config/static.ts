@@ -27,6 +27,12 @@ const staticServerConfig = defineConfig({
    * Policy for files starting with a dot.
    */
   dotFiles: 'ignore',
+
+  // Vite puts a content hash in asset filenames, so these can be cached until the URL changes.
+  headers: (path) =>
+    /[\\/]assets[\\/][^\\/]+-[A-Za-z0-9_-]{8,}\.(?:css|js)$/.test(path)
+      ? { 'Cache-Control': 'public, max-age=31536000, immutable' }
+      : {},
 })
 
 export default staticServerConfig
