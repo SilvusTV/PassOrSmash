@@ -2,6 +2,7 @@
 import { Link, router } from '@inertiajs/react'
 import { useState } from 'react'
 import Seo from '~/components/seo'
+import { trackAnalyticsEvent } from '~/components/analytics'
 type Playlist = {
   slug: string
   title: string
@@ -90,9 +91,13 @@ export default function Show({
         preserveScroll: true,
         preserveState: true,
         onSuccess: () => {
+          trackAnalyticsEvent('playlist_vote', { choice, playlist_slug: playlist.slug })
           setVotes((current) => ({ ...current, [item.id]: choice }))
           if (index < items.length - 1) setIndex(index + 1)
-          else setDone(true)
+          else {
+            trackAnalyticsEvent('playlist_complete', { playlist_slug: playlist.slug })
+            setDone(true)
+          }
         },
       }
     )

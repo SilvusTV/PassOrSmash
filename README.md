@@ -175,6 +175,14 @@ Avant de déployer :
 4. configure `APP_URL`, `DISCORD_REDIRECT_URI` et les secrets via ton hébergeur ;
 5. exécute `node ace migration:run --force`, puis démarre le build avec `npm start`.
 
+## Google Analytics 4
+
+Dans **Administration → Flux de données → Web** de GA4, copie l’**identifiant de mesure** du site (format `G-XXXXXXXXXX`). Configure `VITE_GOOGLE_ANALYTICS_ID` avec cette valeur dans les variables d’environnement du serveur de production, puis redémarre l’application. Ce n’est pas une clé secrète, mais il faut utiliser l’identifiant du bon flux Web. Si la variable est vide ou absente, aucune balise GA4 n’est chargée.
+
+Le site attend le consentement avant de charger la balise Google. Après acceptation, il envoie une vue pour la page courante, puis une vue à chaque navigation Inertia. Il suit aussi les événements `playlist_vote` et `playlist_complete`, sans titre ni identifiant de joueur. Pour tester, ouvre le site sans bloqueur de publicité, accepte les statistiques dans le bandeau, puis vérifie **Rapports → Temps réel** dans la propriété GA4 correspondante. Un choix « Refuser » antérieur est mémorisé dans `localStorage` sous `passorsmash_analytics_consent` : utilise une fenêtre privée ou efface ce choix pour refaire le test.
+
+Dans le flux Web GA4, désactive **Mesure améliorée → Vues de page → Changements de page basés sur l’historique du navigateur** afin d’éviter les doubles vues : l’application les envoie déjà manuellement.
+
 ## Sécurité
 
 - Les créations et modifications de playlists nécessitent une session Discord.
