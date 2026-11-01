@@ -6,6 +6,84 @@ import type { ApiDefinition } from './tree.d.ts'
 const placeholder: any = {}
 
 const routes = {
+  'mcp.resourceMetadata': {
+    methods: ["GET","HEAD"],
+    pattern: '/.well-known/oauth-protected-resource/mcp',
+    tokens: [{"old":"/.well-known/oauth-protected-resource/mcp","type":0,"val":".well-known","end":""},{"old":"/.well-known/oauth-protected-resource/mcp","type":0,"val":"oauth-protected-resource","end":""},{"old":"/.well-known/oauth-protected-resource/mcp","type":0,"val":"mcp","end":""}],
+    types: placeholder as Registry['mcp.resourceMetadata']['types'],
+  },
+  'mcp.rootMetadata': {
+    methods: ["GET","HEAD"],
+    pattern: '/.well-known/oauth-protected-resource',
+    tokens: [{"old":"/.well-known/oauth-protected-resource","type":0,"val":".well-known","end":""},{"old":"/.well-known/oauth-protected-resource","type":0,"val":"oauth-protected-resource","end":""}],
+    types: placeholder as Registry['mcp.rootMetadata']['types'],
+  },
+  'mcp': {
+    methods: ["GET","POST","DELETE"],
+    pattern: '/mcp',
+    tokens: [{"old":"/mcp","type":0,"val":"mcp","end":""}],
+    types: placeholder as Registry['mcp']['types'],
+  },
+  'editorial.media': {
+    methods: ["GET","HEAD"],
+    pattern: '/editorial/media/:id',
+    tokens: [{"old":"/editorial/media/:id","type":0,"val":"editorial","end":""},{"old":"/editorial/media/:id","type":0,"val":"media","end":""},{"old":"/editorial/media/:id","type":1,"val":"id","end":""}],
+    types: placeholder as Registry['editorial.media']['types'],
+  },
+  'editorial.index': {
+    methods: ["GET","HEAD"],
+    pattern: '/admin/editorial',
+    tokens: [{"old":"/admin/editorial","type":0,"val":"admin","end":""},{"old":"/admin/editorial","type":0,"val":"editorial","end":""}],
+    types: placeholder as Registry['editorial.index']['types'],
+  },
+  'editorial.settings': {
+    methods: ["POST"],
+    pattern: '/admin/editorial/settings',
+    tokens: [{"old":"/admin/editorial/settings","type":0,"val":"admin","end":""},{"old":"/admin/editorial/settings","type":0,"val":"editorial","end":""},{"old":"/admin/editorial/settings","type":0,"val":"settings","end":""}],
+    types: placeholder as Registry['editorial.settings']['types'],
+  },
+  'editorial.connection': {
+    methods: ["POST"],
+    pattern: '/admin/editorial/connections',
+    tokens: [{"old":"/admin/editorial/connections","type":0,"val":"admin","end":""},{"old":"/admin/editorial/connections","type":0,"val":"editorial","end":""},{"old":"/admin/editorial/connections","type":0,"val":"connections","end":""}],
+    types: placeholder as Registry['editorial.connection']['types'],
+  },
+  'editorial.revoke': {
+    methods: ["POST"],
+    pattern: '/admin/editorial/connections/:id/revoke',
+    tokens: [{"old":"/admin/editorial/connections/:id/revoke","type":0,"val":"admin","end":""},{"old":"/admin/editorial/connections/:id/revoke","type":0,"val":"editorial","end":""},{"old":"/admin/editorial/connections/:id/revoke","type":0,"val":"connections","end":""},{"old":"/admin/editorial/connections/:id/revoke","type":1,"val":"id","end":""},{"old":"/admin/editorial/connections/:id/revoke","type":0,"val":"revoke","end":""}],
+    types: placeholder as Registry['editorial.revoke']['types'],
+  },
+  'editorial.retry': {
+    methods: ["POST"],
+    pattern: '/admin/editorial/jobs/:id/retry',
+    tokens: [{"old":"/admin/editorial/jobs/:id/retry","type":0,"val":"admin","end":""},{"old":"/admin/editorial/jobs/:id/retry","type":0,"val":"editorial","end":""},{"old":"/admin/editorial/jobs/:id/retry","type":0,"val":"jobs","end":""},{"old":"/admin/editorial/jobs/:id/retry","type":1,"val":"id","end":""},{"old":"/admin/editorial/jobs/:id/retry","type":0,"val":"retry","end":""}],
+    types: placeholder as Registry['editorial.retry']['types'],
+  },
+  'editorial.generate': {
+    methods: ["POST"],
+    pattern: '/admin/editorial/generate',
+    tokens: [{"old":"/admin/editorial/generate","type":0,"val":"admin","end":""},{"old":"/admin/editorial/generate","type":0,"val":"editorial","end":""},{"old":"/admin/editorial/generate","type":0,"val":"generate","end":""}],
+    types: placeholder as Registry['editorial.generate']['types'],
+  },
+  'editorial.create': {
+    methods: ["POST"],
+    pattern: '/admin/editorial/proposals',
+    tokens: [{"old":"/admin/editorial/proposals","type":0,"val":"admin","end":""},{"old":"/admin/editorial/proposals","type":0,"val":"editorial","end":""},{"old":"/admin/editorial/proposals","type":0,"val":"proposals","end":""}],
+    types: placeholder as Registry['editorial.create']['types'],
+  },
+  'editorial.show': {
+    methods: ["GET","HEAD"],
+    pattern: '/admin/editorial/proposals/:id',
+    tokens: [{"old":"/admin/editorial/proposals/:id","type":0,"val":"admin","end":""},{"old":"/admin/editorial/proposals/:id","type":0,"val":"editorial","end":""},{"old":"/admin/editorial/proposals/:id","type":0,"val":"proposals","end":""},{"old":"/admin/editorial/proposals/:id","type":1,"val":"id","end":""}],
+    types: placeholder as Registry['editorial.show']['types'],
+  },
+  'editorial.action': {
+    methods: ["POST"],
+    pattern: '/admin/editorial/proposals/:id/:action',
+    tokens: [{"old":"/admin/editorial/proposals/:id/:action","type":0,"val":"admin","end":""},{"old":"/admin/editorial/proposals/:id/:action","type":0,"val":"editorial","end":""},{"old":"/admin/editorial/proposals/:id/:action","type":0,"val":"proposals","end":""},{"old":"/admin/editorial/proposals/:id/:action","type":1,"val":"id","end":""},{"old":"/admin/editorial/proposals/:id/:action","type":1,"val":"action","end":""}],
+    types: placeholder as Registry['editorial.action']['types'],
+  },
   'home': {
     methods: ["GET","HEAD"],
     pattern: '/',
@@ -107,6 +185,12 @@ const routes = {
     pattern: '/playlists',
     tokens: [{"old":"/playlists","type":0,"val":"playlists","end":""}],
     types: placeholder as Registry['playlists.store']['types'],
+  },
+  'playlists.import': {
+    methods: ["POST"],
+    pattern: '/playlists/import',
+    tokens: [{"old":"/playlists/import","type":0,"val":"playlists","end":""},{"old":"/playlists/import","type":0,"val":"import","end":""}],
+    types: placeholder as Registry['playlists.import']['types'],
   },
   'uploads.images.store': {
     methods: ["POST"],

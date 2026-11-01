@@ -10,6 +10,31 @@
 import { middleware } from '#start/kernel'
 import { controllers } from '#generated/controllers'
 import router from '@adonisjs/core/services/router'
+const McpController = () => import('#controllers/mcp_controller')
+const EditorialController = () => import('#controllers/editorial_controller')
+
+router
+  .get('/.well-known/oauth-protected-resource/mcp', [McpController, 'metadata'])
+  .as('mcp.resourceMetadata')
+router
+  .get('/.well-known/oauth-protected-resource', [McpController, 'metadata'])
+  .as('mcp.rootMetadata')
+router.route('/mcp', ['GET', 'POST', 'DELETE'], [McpController, 'handle'])
+router.get('/editorial/media/:id', [EditorialController, 'media'])
+router
+  .group(() => {
+    router.get('/', [EditorialController, 'index'])
+    router.post('/settings', [EditorialController, 'settings'])
+    router.post('/connections', [EditorialController, 'connection'])
+    router.post('/connections/:id/revoke', [EditorialController, 'revoke'])
+    router.post('/jobs/:id/retry', [EditorialController, 'retry'])
+    router.post('/generate', [EditorialController, 'generate'])
+    router.post('/proposals', [EditorialController, 'create'])
+    router.get('/proposals/:id', [EditorialController, 'show'])
+    router.post('/proposals/:id/:action', [EditorialController, 'action'])
+  })
+  .prefix('/admin/editorial')
+  .use([middleware.auth(), middleware.editorialAdmin()])
 
 router.get('/', [controllers.Home, 'index']).as('home')
 router.get('/jeu-smash-or-pass', [controllers.Home, 'about']).as('about')

@@ -7,6 +7,207 @@
 import { BaseModel, column } from '@adonisjs/lucid/orm'
 import { DateTime } from 'luxon'
 
+export class EditorialAuditSchema extends BaseModel {
+  static $columns = [
+    'action',
+    'actor',
+    'createdAt',
+    'details',
+    'id',
+    'proposalId',
+    'revision',
+  ] as const
+  $columns = EditorialAuditSchema.$columns
+  @column()
+  declare action: string
+  @column()
+  declare actor: string
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare details: any
+  @column({ isPrimary: true })
+  declare id: bigint | number
+  @column()
+  declare proposalId: string | null
+  @column()
+  declare revision: number | null
+}
+
+export class EditorialConnectionSchema extends BaseModel {
+  static $columns = [
+    'clientId',
+    'expiresAt',
+    'id',
+    'revoked',
+    'scopes',
+    'subject',
+    'userId',
+  ] as const
+  $columns = EditorialConnectionSchema.$columns
+  @column()
+  declare clientId: string
+  @column.dateTime()
+  declare expiresAt: DateTime
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare revoked: boolean
+  @column()
+  declare scopes: any
+  @column()
+  declare subject: string
+  @column()
+  declare userId: number
+}
+
+export class EditorialJobSchema extends BaseModel {
+  static $columns = [
+    'attempts',
+    'availableAt',
+    'createdAt',
+    'error',
+    'id',
+    'input',
+    'kind',
+    'leaseToken',
+    'leaseUntil',
+    'result',
+    'slotKey',
+    'stage',
+    'status',
+    'updatedAt',
+    'userId',
+  ] as const
+  $columns = EditorialJobSchema.$columns
+  @column()
+  declare attempts: number
+  @column.dateTime()
+  declare availableAt: DateTime
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare error: any | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare input: any
+  @column()
+  declare kind: string
+  @column()
+  declare leaseToken: string | null
+  @column.dateTime()
+  declare leaseUntil: DateTime | null
+  @column()
+  declare result: any | null
+  @column()
+  declare slotKey: string | null
+  @column()
+  declare stage: string
+  @column()
+  declare status: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+  @column()
+  declare userId: number
+}
+
+export class EditorialMediaSchema extends BaseModel {
+  static $columns = ['createdAt', 'height', 'id', 'path', 'provenance', 'userId', 'width'] as const
+  $columns = EditorialMediaSchema.$columns
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare height: number
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare path: string
+  @column()
+  declare provenance: any
+  @column()
+  declare userId: number
+  @column()
+  declare width: number
+}
+
+export class EditorialOperationSchema extends BaseModel {
+  static $columns = ['actor', 'inputHash', 'key', 'operation', 'result'] as const
+  $columns = EditorialOperationSchema.$columns
+  @column({ isPrimary: true })
+  declare actor: string
+  @column()
+  declare inputHash: string
+  @column()
+  declare key: string
+  @column()
+  declare operation: string
+  @column()
+  declare result: any
+}
+
+export class EditorialProposalSchema extends BaseModel {
+  static $columns = [
+    'approvedAt',
+    'approvedBy',
+    'approvedRevision',
+    'content',
+    'createdAt',
+    'id',
+    'jobId',
+    'playlistId',
+    'revision',
+    'status',
+    'updatedAt',
+    'userId',
+  ] as const
+  $columns = EditorialProposalSchema.$columns
+  @column.dateTime()
+  declare approvedAt: DateTime | null
+  @column()
+  declare approvedBy: number | null
+  @column()
+  declare approvedRevision: number | null
+  @column()
+  declare content: any
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare jobId: string | null
+  @column()
+  declare playlistId: number | null
+  @column()
+  declare revision: number
+  @column()
+  declare status: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+  @column()
+  declare userId: number
+}
+
+export class EditorialRevisionSchema extends BaseModel {
+  static $columns = ['content', 'proposalId', 'revision'] as const
+  $columns = EditorialRevisionSchema.$columns
+  @column()
+  declare content: any
+  @column({ isPrimary: true })
+  declare proposalId: string
+  @column()
+  declare revision: number
+}
+
+export class EditorialSettingSchema extends BaseModel {
+  static $columns = ['id', 'settings'] as const
+  $columns = EditorialSettingSchema.$columns
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare settings: any
+}
+
 export class PlaylistItemSchema extends BaseModel {
   static $columns = [
     'createdAt',

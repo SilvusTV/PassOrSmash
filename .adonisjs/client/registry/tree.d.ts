@@ -2,6 +2,22 @@
 import type { routes } from './index.ts'
 
 export interface ApiDefinition {
+  mcp: typeof routes['mcp'] & {
+    resourceMetadata: typeof routes['mcp.resourceMetadata']
+    rootMetadata: typeof routes['mcp.rootMetadata']
+  }
+  editorial: {
+    media: typeof routes['editorial.media']
+    index: typeof routes['editorial.index']
+    settings: typeof routes['editorial.settings']
+    connection: typeof routes['editorial.connection']
+    revoke: typeof routes['editorial.revoke']
+    retry: typeof routes['editorial.retry']
+    generate: typeof routes['editorial.generate']
+    create: typeof routes['editorial.create']
+    show: typeof routes['editorial.show']
+    action: typeof routes['editorial.action']
+  }
   home: typeof routes['home'] & {
     robots: typeof routes['home.robots']
     sitemap: typeof routes['home.sitemap']
@@ -13,6 +29,7 @@ export interface ApiDefinition {
     index: typeof routes['playlists.index']
     create: typeof routes['playlists.create']
     store: typeof routes['playlists.store']
+    import: typeof routes['playlists.import']
     edit: typeof routes['playlists.edit']
     update: typeof routes['playlists.update']
     destroy: typeof routes['playlists.destroy']

@@ -4,6 +4,19 @@ type ParamValue = string | number | bigint | boolean
 
 export type ScannedRoutes = {
   ALL: {
+    'mcp.resourceMetadata': { paramsTuple?: []; params?: {} }
+    'mcp.rootMetadata': { paramsTuple?: []; params?: {} }
+    'mcp': { paramsTuple?: []; params?: {} }
+    'editorial.media': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'editorial.index': { paramsTuple?: []; params?: {} }
+    'editorial.settings': { paramsTuple?: []; params?: {} }
+    'editorial.connection': { paramsTuple?: []; params?: {} }
+    'editorial.revoke': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'editorial.retry': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'editorial.generate': { paramsTuple?: []; params?: {} }
+    'editorial.create': { paramsTuple?: []; params?: {} }
+    'editorial.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'editorial.action': { paramsTuple: [ParamValue,ParamValue]; params: {'id': ParamValue,'action': ParamValue} }
     'home': { paramsTuple?: []; params?: {} }
     'about': { paramsTuple?: []; params?: {} }
     'explore': { paramsTuple?: []; params?: {} }
@@ -21,6 +34,7 @@ export type ScannedRoutes = {
     'playlists.index': { paramsTuple?: []; params?: {} }
     'playlists.create': { paramsTuple?: []; params?: {} }
     'playlists.store': { paramsTuple?: []; params?: {} }
+    'playlists.import': { paramsTuple?: []; params?: {} }
     'uploads.images.store': { paramsTuple?: []; params?: {} }
     'playlists.edit': { paramsTuple: [ParamValue]; params: {'slug': ParamValue} }
     'playlists.update': { paramsTuple: [ParamValue]; params: {'slug': ParamValue} }
@@ -28,6 +42,12 @@ export type ScannedRoutes = {
     'auth.logout': { paramsTuple?: []; params?: {} }
   }
   GET: {
+    'mcp.resourceMetadata': { paramsTuple?: []; params?: {} }
+    'mcp.rootMetadata': { paramsTuple?: []; params?: {} }
+    'mcp': { paramsTuple?: []; params?: {} }
+    'editorial.media': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'editorial.index': { paramsTuple?: []; params?: {} }
+    'editorial.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'home': { paramsTuple?: []; params?: {} }
     'about': { paramsTuple?: []; params?: {} }
     'explore': { paramsTuple?: []; params?: {} }
@@ -44,6 +64,11 @@ export type ScannedRoutes = {
     'playlists.edit': { paramsTuple: [ParamValue]; params: {'slug': ParamValue} }
   }
   HEAD: {
+    'mcp.resourceMetadata': { paramsTuple?: []; params?: {} }
+    'mcp.rootMetadata': { paramsTuple?: []; params?: {} }
+    'editorial.media': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'editorial.index': { paramsTuple?: []; params?: {} }
+    'editorial.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'home': { paramsTuple?: []; params?: {} }
     'about': { paramsTuple?: []; params?: {} }
     'explore': { paramsTuple?: []; params?: {} }
@@ -60,18 +85,28 @@ export type ScannedRoutes = {
     'playlists.edit': { paramsTuple: [ParamValue]; params: {'slug': ParamValue} }
   }
   POST: {
+    'mcp': { paramsTuple?: []; params?: {} }
+    'editorial.settings': { paramsTuple?: []; params?: {} }
+    'editorial.connection': { paramsTuple?: []; params?: {} }
+    'editorial.revoke': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'editorial.retry': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'editorial.generate': { paramsTuple?: []; params?: {} }
+    'editorial.create': { paramsTuple?: []; params?: {} }
+    'editorial.action': { paramsTuple: [ParamValue,ParamValue]; params: {'id': ParamValue,'action': ParamValue} }
     'votes.store': { paramsTuple?: []; params?: {} }
     'new_account.store': { paramsTuple?: []; params?: {} }
     'session.store': { paramsTuple?: []; params?: {} }
     'playlists.store': { paramsTuple?: []; params?: {} }
+    'playlists.import': { paramsTuple?: []; params?: {} }
     'uploads.images.store': { paramsTuple?: []; params?: {} }
     'auth.logout': { paramsTuple?: []; params?: {} }
   }
+  DELETE: {
+    'mcp': { paramsTuple?: []; params?: {} }
+    'playlists.destroy': { paramsTuple: [ParamValue]; params: {'slug': ParamValue} }
+  }
   PUT: {
     'playlists.update': { paramsTuple: [ParamValue]; params: {'slug': ParamValue} }
-  }
-  DELETE: {
-    'playlists.destroy': { paramsTuple: [ParamValue]; params: {'slug': ParamValue} }
   }
 }
 declare module '@adonisjs/core/types/http' {

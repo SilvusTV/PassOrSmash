@@ -21,6 +21,7 @@ export default function Layout({ children }: { children: ReactElement }) {
     { fullName?: string; username?: string; avatarUrl?: string; initials?: string } | undefined
   const isPrivatePage =
     url.startsWith('/dashboard') ||
+    url.startsWith('/admin/') ||
     url.startsWith('/auth/') ||
     url.startsWith('/login') ||
     url.startsWith('/signup') ||
@@ -56,6 +57,7 @@ export default function Layout({ children }: { children: ReactElement }) {
           {user ? (
             <>
               <Link href="/dashboard">Mes playlists</Link>
+              {props.editorialAdmin && <Link href="/admin/editorial">Studio éditorial</Link>}
               <Link href="/playlists/create" className="nav-cta">
                 Créer
               </Link>

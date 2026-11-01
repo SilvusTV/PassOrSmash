@@ -7,6 +7,162 @@ import type { InferInput, SimpleError } from '@vinejs/vine/types'
 export type ParamValue = string | number | bigint | boolean
 
 export interface Registry {
+  'mcp.resourceMetadata': {
+    methods: ["GET","HEAD"]
+    pattern: '/.well-known/oauth-protected-resource/mcp'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/mcp_controller').default['metadata']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/mcp_controller').default['metadata']>>>
+    }
+  }
+  'mcp.rootMetadata': {
+    methods: ["GET","HEAD"]
+    pattern: '/.well-known/oauth-protected-resource'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/mcp_controller').default['metadata']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/mcp_controller').default['metadata']>>>
+    }
+  }
+  'mcp': {
+    methods: ["GET","POST","DELETE"]
+    pattern: '/mcp'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/mcp_controller').default['handle']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/mcp_controller').default['handle']>>>
+    }
+  }
+  'editorial.media': {
+    methods: ["GET","HEAD"]
+    pattern: '/editorial/media/:id'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/editorial_controller').default['media']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/editorial_controller').default['media']>>>
+    }
+  }
+  'editorial.index': {
+    methods: ["GET","HEAD"]
+    pattern: '/admin/editorial'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/editorial_controller').default['index']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/editorial_controller').default['index']>>>
+    }
+  }
+  'editorial.settings': {
+    methods: ["POST"]
+    pattern: '/admin/editorial/settings'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/editorial_controller').default['settings']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/editorial_controller').default['settings']>>>
+    }
+  }
+  'editorial.connection': {
+    methods: ["POST"]
+    pattern: '/admin/editorial/connections'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/editorial_controller').default['connection']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/editorial_controller').default['connection']>>>
+    }
+  }
+  'editorial.revoke': {
+    methods: ["POST"]
+    pattern: '/admin/editorial/connections/:id/revoke'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/editorial_controller').default['revoke']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/editorial_controller').default['revoke']>>>
+    }
+  }
+  'editorial.retry': {
+    methods: ["POST"]
+    pattern: '/admin/editorial/jobs/:id/retry'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/editorial_controller').default['retry']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/editorial_controller').default['retry']>>>
+    }
+  }
+  'editorial.generate': {
+    methods: ["POST"]
+    pattern: '/admin/editorial/generate'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/editorial_controller').default['generate']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/editorial_controller').default['generate']>>>
+    }
+  }
+  'editorial.create': {
+    methods: ["POST"]
+    pattern: '/admin/editorial/proposals'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/editorial_controller').default['create']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/editorial_controller').default['create']>>>
+    }
+  }
+  'editorial.show': {
+    methods: ["GET","HEAD"]
+    pattern: '/admin/editorial/proposals/:id'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/editorial_controller').default['show']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/editorial_controller').default['show']>>>
+    }
+  }
+  'editorial.action': {
+    methods: ["POST"]
+    pattern: '/admin/editorial/proposals/:id/:action'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue, ParamValue]
+      params: { id: ParamValue; action: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/editorial_controller').default['action']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/editorial_controller').default['action']>>>
+    }
+  }
   'home': {
     methods: ["GET","HEAD"]
     pattern: '/'
@@ -209,6 +365,18 @@ export interface Registry {
       query: ExtractQuery<InferInput<(typeof import('#validators/playlist').createPlaylistValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/playlists_controller').default['store']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/playlists_controller').default['store']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'playlists.import': {
+    methods: ["POST"]
+    pattern: '/playlists/import'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/playlist').importPlaylistsValidator)>>
+      paramsTuple: []
+      params: {}
+      query: ExtractQuery<InferInput<(typeof import('#validators/playlist').importPlaylistsValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/playlists_controller').default['import']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/playlists_controller').default['import']>>> | { status: 422; response: { errors: SimpleError[] } }
     }
   }
   'uploads.images.store': {

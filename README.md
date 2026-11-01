@@ -142,6 +142,8 @@ Les formats acceptés sont JPG, PNG, WebP et GIF, avec une taille maximale de 8 
 
 ## Commandes utiles
 
+Le serveur MCP et le studio de validation éditoriale sont décrits dans [le guide de mise en service](docs/mcp-editorial-mise-en-service.md). L’automatisation reste désactivée tant que les accès, fournisseurs et créneaux ne sont pas configurés.
+
 ```bash
 npm run dev        # serveur avec rechargement à chaud
 npm run typecheck  # vérification TypeScript backend + frontend

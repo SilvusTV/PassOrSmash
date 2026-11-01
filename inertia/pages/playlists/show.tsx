@@ -18,6 +18,7 @@ type Item = {
   imageUrl: string
   smashes: number
   passes: number
+  imageCredit?: { url: string; credit: string; license: string; license_url: string }
 }
 
 function PlaylistEditorial({ playlist, items }: { playlist: Playlist; items: Item[] }) {
@@ -40,6 +41,17 @@ function PlaylistEditorial({ playlist, items }: { playlist: Playlist; items: Ite
               <div>
                 <strong>{entry.title}</strong>
                 {entry.description && <p>{entry.description}</p>}
+                {entry.imageCredit && (
+                  <p>
+                    <a href={entry.imageCredit.url} target="_blank" rel="noreferrer">
+                      {entry.imageCredit.credit}
+                    </a>{' '}
+                    ·{' '}
+                    <a href={entry.imageCredit.license_url} target="_blank" rel="noreferrer">
+                      {entry.imageCredit.license}
+                    </a>
+                  </p>
+                )}
               </div>
             </li>
           ))}
@@ -53,10 +65,12 @@ export default function Show({
   playlist,
   items,
   canEdit,
+  preview = false,
 }: {
   playlist: Playlist
   items: Item[]
   canEdit: boolean
+  preview?: boolean
 }) {
   const [index, setIndex] = useState(0)
   const [done, setDone] = useState(false)
@@ -84,6 +98,12 @@ export default function Show({
     },
   }
   const vote = (choice: 'smash' | 'pass') => {
+    if (preview) {
+      setVotes((current) => ({ ...current, [item.id]: choice }))
+      if (index < items.length - 1) setIndex(index + 1)
+      else setDone(true)
+      return
+    }
     router.post(
       '/vote',
       { itemId: item.id, choice },
@@ -117,15 +137,17 @@ export default function Show({
     )
     return (
       <>
-        <Seo
-          title={`Résultats — ${playlist.title}`}
-          description={
-            playlist.description || `Découvre les résultats de la playlist ${playlist.title}.`
-          }
-          path={`/p/${playlist.slug}`}
-          noIndex={!playlist.isPublic}
-          structuredData={structuredData}
-        />
+        {!preview && (
+          <Seo
+            title={`Résultats — ${playlist.title}`}
+            description={
+              playlist.description || `Découvre les résultats de la playlist ${playlist.title}.`
+            }
+            path={`/p/${playlist.slug}`}
+            noIndex={!playlist.isPublic}
+            structuredData={structuredData}
+          />
+        )}
         <section className="results-page">
           <span className="eyebrow">Verdict final</span>
           <h1>Le classement.</h1>
@@ -180,14 +202,16 @@ export default function Show({
   const percent = total ? Math.round((item.smashes / total) * 100) : 50
   return (
     <>
-      <Seo
-        title={`${playlist.title} — jeu Smash ou Pass`}
-        description={seoDescription}
-        path={`/p/${playlist.slug}`}
-        image={item.imageUrl}
-        noIndex={!playlist.isPublic}
-        structuredData={structuredData}
-      />
+      {!preview && (
+        <Seo
+          title={`${playlist.title} — jeu Smash ou Pass`}
+          description={seoDescription}
+          path={`/p/${playlist.slug}`}
+          image={item.imageUrl}
+          noIndex={!playlist.isPublic}
+          structuredData={structuredData}
+        />
+      )}
       <section className={`play-page accent-${playlist.accent}`}>
         <div className="play-top">
           <div>
@@ -196,7 +220,11 @@ export default function Show({
           </div>
           <div className="play-controls">
             {canEdit && <Link href={`/p/${playlist.slug}/edit`}>Modifier</Link>}
-            <button onClick={() => navigator.clipboard.writeText(location.href)}>Partager ↗</button>
+            {!preview && (
+              <button onClick={() => navigator.clipboard.writeText(location.href)}>
+                Partager ↗
+              </button>
+            )}
           </div>
         </div>
         <div className="play-grid">

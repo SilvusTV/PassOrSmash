@@ -22,6 +22,14 @@ export default await Env.create(new URL('../', import.meta.url), {
   APP_KEY: Env.schema.secret(),
   APP_URL: Env.schema.string({ format: 'url', tld: false }),
   VITE_GOOGLE_ANALYTICS_ID: Env.schema.string.optional(),
+  EDITORIAL_ADMIN_DISCORD_IDS: Env.schema.string.optional(),
+  MCP_OAUTH_ISSUER: Env.schema.string.optional(),
+  MCP_OAUTH_JWKS_URL: Env.schema.string.optional(),
+  MCP_ALLOWED_ORIGINS: Env.schema.string.optional(),
+  EDITORIAL_GENERATION_URL: Env.schema.string.optional(),
+  EDITORIAL_GENERATION_TOKEN: Env.schema.string.optional(),
+  EDITORIAL_NOTIFICATION_URL: Env.schema.string.optional(),
+  EDITORIAL_NOTIFICATION_TOKEN: Env.schema.string.optional(),
 
   // Session
   SESSION_DRIVER: Env.schema.enum(['cookie', 'memory', 'database'] as const),

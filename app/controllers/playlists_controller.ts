@@ -117,6 +117,12 @@ export default class PlaylistsController {
     const playlist = await Playlist.findByOrFail('slug', params.slug)
     if (!playlist.isPublic && playlist.userId !== auth.user?.id) return response.notFound()
     const items = await PlaylistItem.query().where('playlistId', playlist.id).orderBy('position')
+    const editorialMediaIds = items.flatMap(
+      (item) => /^\/editorial\/media\/([a-f0-9-]{36})$/.exec(item.imageUrl)?.slice(1) || []
+    )
+    const editorialMedia = editorialMediaIds.length
+      ? await db.from('editorial_media').whereIn('id', editorialMediaIds).select('id', 'provenance')
+      : []
     const visitorId = request.cookie('pos_visitor') || string.random(32)
     response.cookie('pos_visitor', visitorId, { httpOnly: true, sameSite: 'lax', maxAge: '1 year' })
     return inertia.render('playlists/show', {
@@ -135,6 +141,9 @@ export default class PlaylistsController {
         imageUrl: item.imageUrl,
         smashes: item.smashes,
         passes: item.passes,
+        imageCredit: editorialMedia.find(
+          (media) => item.imageUrl === `/editorial/media/${media.id}`
+        )?.provenance,
       })),
       canEdit: playlist.userId === auth.user?.id,
     })

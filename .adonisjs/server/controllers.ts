@@ -5,7 +5,9 @@
 
 export const controllers = {
   DiscordAuth: () => import('#controllers/discord_auth_controller'),
+  Editorial: () => import('#controllers/editorial_controller'),
   Home: () => import('#controllers/home_controller'),
+  Mcp: () => import('#controllers/mcp_controller'),
   NewAccount: () => import('#controllers/new_account_controller'),
   Playlists: () => import('#controllers/playlists_controller'),
   Session: () => import('#controllers/session_controller'),
