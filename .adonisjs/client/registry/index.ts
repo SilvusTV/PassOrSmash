@@ -6,6 +6,30 @@ import type { ApiDefinition } from './tree.d.ts'
 const placeholder: any = {}
 
 const routes = {
+  'oauth.metadata': {
+    methods: ["GET","HEAD"],
+    pattern: '/.well-known/oauth-authorization-server',
+    tokens: [{"old":"/.well-known/oauth-authorization-server","type":0,"val":".well-known","end":""},{"old":"/.well-known/oauth-authorization-server","type":0,"val":"oauth-authorization-server","end":""}],
+    types: placeholder as Registry['oauth.metadata']['types'],
+  },
+  'oauth.openidMetadata': {
+    methods: ["GET","HEAD"],
+    pattern: '/.well-known/openid-configuration',
+    tokens: [{"old":"/.well-known/openid-configuration","type":0,"val":".well-known","end":""},{"old":"/.well-known/openid-configuration","type":0,"val":"openid-configuration","end":""}],
+    types: placeholder as Registry['oauth.openidMetadata']['types'],
+  },
+  'oauth.interaction': {
+    methods: ["GET","HEAD"],
+    pattern: '/oauth/interaction/:uid',
+    tokens: [{"old":"/oauth/interaction/:uid","type":0,"val":"oauth","end":""},{"old":"/oauth/interaction/:uid","type":0,"val":"interaction","end":""},{"old":"/oauth/interaction/:uid","type":1,"val":"uid","end":""}],
+    types: placeholder as Registry['oauth.interaction']['types'],
+  },
+  'oauth.decision': {
+    methods: ["POST"],
+    pattern: '/oauth/interaction/:uid',
+    tokens: [{"old":"/oauth/interaction/:uid","type":0,"val":"oauth","end":""},{"old":"/oauth/interaction/:uid","type":0,"val":"interaction","end":""},{"old":"/oauth/interaction/:uid","type":1,"val":"uid","end":""}],
+    types: placeholder as Registry['oauth.decision']['types'],
+  },
   'mcp.resourceMetadata': {
     methods: ["GET","HEAD"],
     pattern: '/.well-known/oauth-protected-resource/mcp',

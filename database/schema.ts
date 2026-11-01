@@ -39,6 +39,7 @@ export class EditorialConnectionSchema extends BaseModel {
     'clientId',
     'expiresAt',
     'id',
+    'oauthGrantId',
     'revoked',
     'scopes',
     'subject',
@@ -51,6 +52,8 @@ export class EditorialConnectionSchema extends BaseModel {
   declare expiresAt: DateTime
   @column({ isPrimary: true })
   declare id: string
+  @column()
+  declare oauthGrantId: string | null
   @column()
   declare revoked: boolean
   @column()
@@ -206,6 +209,56 @@ export class EditorialSettingSchema extends BaseModel {
   declare id: number
   @column()
   declare settings: any
+}
+
+export class McpOauthKeySchema extends BaseModel {
+  static $columns = ['id', 'jwks'] as const
+  $columns = McpOauthKeySchema.$columns
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare jwks: string
+}
+
+export class McpOauthRateLimitSchema extends BaseModel {
+  static $columns = ['count', 'expiresAt', 'key'] as const
+  $columns = McpOauthRateLimitSchema.$columns
+  @column()
+  declare count: number
+  @column.dateTime()
+  declare expiresAt: DateTime
+  @column({ isPrimary: true })
+  declare key: string
+}
+
+export class McpOauthRecordSchema extends BaseModel {
+  static $columns = [
+    'consumedAt',
+    'expiresAt',
+    'grantKey',
+    'key',
+    'model',
+    'payload',
+    'uidKey',
+    'userCodeKey',
+  ] as const
+  $columns = McpOauthRecordSchema.$columns
+  @column.dateTime()
+  declare consumedAt: DateTime | null
+  @column.dateTime()
+  declare expiresAt: DateTime | null
+  @column()
+  declare grantKey: string | null
+  @column()
+  declare key: string
+  @column({ isPrimary: true })
+  declare model: string
+  @column()
+  declare payload: string
+  @column()
+  declare uidKey: string | null
+  @column()
+  declare userCodeKey: string | null
 }
 
 export class PlaylistItemSchema extends BaseModel {

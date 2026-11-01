@@ -6,12 +6,12 @@ import env from '#start/env'
 import { createEditorialServer } from '../mcp/server.js'
 import { EditorialError, scopes } from '#services/editorial/contracts'
 import { authorizeMcpClaims } from '#services/editorial/mcp_access'
+import { oauthIssuer, verifyLocalAccessToken } from '#services/oauth/provider'
 
 const jwks = new Map<string, ReturnType<typeof createRemoteJWKSet>>()
 export default class McpController {
   async metadata({ response }: HttpContext) {
-    const issuer = env.get('MCP_OAUTH_ISSUER')
-    if (!issuer) return response.serviceUnavailable({ error: 'MCP OAuth non configuré.' })
+    const issuer = env.get('MCP_OAUTH_ISSUER') || oauthIssuer()
     return response.header('Access-Control-Allow-Origin', '*').send({
       resource: `${env.get('APP_URL').replace(/\/$/, '')}/mcp`,
       authorization_servers: [issuer],
@@ -36,10 +36,8 @@ export default class McpController {
     const issuer = env.get('MCP_OAUTH_ISSUER')
     const jwksUrl = env.get('MCP_OAUTH_JWKS_URL')
     if (
-      !issuer ||
-      !jwksUrl ||
-      new URL(issuer).protocol !== 'https:' ||
-      new URL(jwksUrl).protocol !== 'https:'
+      issuer &&
+      (!jwksUrl || new URL(issuer).protocol !== 'https:' || new URL(jwksUrl).protocol !== 'https:')
     )
       return response.serviceUnavailable({ error: 'MCP OAuth non configuré.' })
     const token = request.header('authorization')?.match(/^Bearer ([^\s]+)$/i)?.[1]
@@ -53,15 +51,18 @@ export default class McpController {
     if (!token) return unauthorized()
     let actor
     try {
-      if (!jwks.has(jwksUrl))
-        jwks.set(jwksUrl, createRemoteJWKSet(new URL(jwksUrl), { timeoutDuration: 5000 }))
-      const { payload } = await jwtVerify(token, jwks.get(jwksUrl)!, {
-        issuer,
-        audience: `${base.origin}/mcp`,
-        algorithms: ['RS256', 'ES256'],
-        requiredClaims: ['exp', 'sub', 'iat'],
-      })
-      actor = await authorizeMcpClaims(payload)
+      if (!issuer) actor = await authorizeMcpClaims(await verifyLocalAccessToken(token))
+      else {
+        if (!jwks.has(jwksUrl!))
+          jwks.set(jwksUrl!, createRemoteJWKSet(new URL(jwksUrl!), { timeoutDuration: 5000 }))
+        const { payload } = await jwtVerify(token, jwks.get(jwksUrl!)!, {
+          issuer,
+          audience: `${base.origin}/mcp`,
+          algorithms: ['RS256', 'ES256'],
+          requiredClaims: ['exp', 'sub', 'iat'],
+        })
+        actor = await authorizeMcpClaims(payload)
+      }
     } catch (error) {
       if (error instanceof EditorialError && error.code === 'INSUFFICIENT_SCOPE')
         return response

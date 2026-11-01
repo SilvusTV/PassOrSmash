@@ -27,11 +27,20 @@ export default class DiscordAuthController {
 
   async callback({ request, response, session, auth }: HttpContext) {
     const code = request.input('code')
-    if (!code || request.input('state') !== session.get('discord_oauth_state'))
+    const expectedState = session.get('discord_oauth_state')
+    const state = request.input('state')
+    if (
+      !code ||
+      typeof expectedState !== 'string' ||
+      typeof state !== 'string' ||
+      state !== expectedState
+    )
       return response.redirect().toRoute('auth.error')
+    session.forget('discord_oauth_state')
     try {
       const tokenResponse = await fetch('https://discord.com/api/oauth2/token', {
         method: 'POST',
+        signal: AbortSignal.timeout(10000),
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: new URLSearchParams({
           client_id: env.get('DISCORD_CLIENT_ID'),
@@ -44,6 +53,7 @@ export default class DiscordAuthController {
       const token = (await tokenResponse.json()) as { access_token?: string }
       if (!token.access_token) throw new Error('Discord token missing')
       const profileResponse = await fetch('https://discord.com/api/users/@me', {
+        signal: AbortSignal.timeout(10000),
         headers: { Authorization: `Bearer ${token.access_token}` },
       })
       const profile = (await profileResponse.json()) as {
@@ -69,6 +79,10 @@ export default class DiscordAuthController {
       await user.save()
       await auth.use('web').login(user)
       session.forget('discord_oauth_state')
+      const interaction = session.get('mcp_oauth_interaction')
+      session.forget('mcp_oauth_interaction')
+      if (typeof interaction === 'string' && /^[\w-]{10,200}$/.test(interaction))
+        return response.redirect().withQs(false).toPath(`/oauth/interaction/${interaction}`)
       return response.redirect().toRoute('playlists.index')
     } catch {
       return response.redirect().toRoute('auth.error')

@@ -17,9 +17,9 @@ if (process.env.EDITORIAL_DB_TESTS === '1') {
       const user = await User.create({
         email: `${uid}@example.com`,
         password: 'test-password',
-        discordId: `admin-${uid}`,
+        discordId: `admin-${uid.slice(0, 20)}`,
       })
-      env.set('EDITORIAL_ADMIN_DISCORD_IDS', `admin-${uid}`)
+      env.set('EDITORIAL_ADMIN_DISCORD_IDS', `admin-${uid.slice(0, 20)}`)
       const proposal = await new Proposals().create(
         { userId: user.id, identity: `dashboard:${user.id}`, scopes: [...scopes] },
         contentSchema.parse({
@@ -31,7 +31,7 @@ if (process.env.EDITORIAL_DB_TESTS === '1') {
       )
       const context = await browser.newContext({ viewport: { width: 1280, height: 900 } })
       await context.loginAs(user)
-      const page = await context.visit('/admin/editorial')
+      const page = await context.visit('http://localhost:3333/admin/editorial')
       await page.getByRole('heading', { name: 'Studio éditorial.' }).waitFor()
       await page.screenshot({ path: 'tmp/editorial-admin-desktop.png', fullPage: true })
       await page.getByRole('link', { name: 'Sélection de démonstration' }).click()
@@ -53,12 +53,13 @@ if (process.env.EDITORIAL_DB_TESTS === '1') {
       const ordinary = await User.create({
         email: `ordinary-${uid}@example.com`,
         password: 'test-password',
-        discordId: `ordinary-${uid}`,
+        discordId: `ordinary-${uid.slice(0, 20)}`,
       })
       const deniedContext = await browser.newContext()
       await deniedContext.loginAs(ordinary)
-      const denied = await deniedContext.request.get('http://localhost:3333/admin/editorial')
-      assert.equal(denied.status(), 403)
+      const deniedPage = await deniedContext.newPage()
+      const denied = await deniedPage.goto('http://localhost:3333/admin/editorial')
+      assert.equal(denied!.status(), 403)
       await deniedContext.close()
     })
   })

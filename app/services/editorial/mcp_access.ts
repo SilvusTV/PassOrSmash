@@ -17,6 +17,8 @@ export async function authorizeMcpClaims(payload: JWTPayload): Promise<Actor> {
   const user = connection && (await User.find(connection.user_id))
   if (!connection || !user || !isEditorialAdmin(user))
     throw new EditorialError('FORBIDDEN', 'Connexion OAuth expirée, révoquée ou inconnue.')
+  if (connection.oauth_grant_id && payload.grant_id !== connection.oauth_grant_id)
+    throw new EditorialError('FORBIDDEN', 'Autorisation OAuth remplacée.')
   const tokenScopes = typeof payload.scope === 'string' ? payload.scope.split(' ') : []
   const allowed = connection.scopes.filter(
     (scope: string) =>

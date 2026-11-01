@@ -1940,10 +1940,11 @@ footer > div {
   gap: 1.5rem;
 }
 .editorial-panel {
+  color: var(--ink);
   padding: 1.5rem;
-  border: 1px solid var(--border, #333);
+  border: 1px solid var(--line);
   border-radius: 16px;
-  background: var(--surface, #151515);
+  background: var(--white);
 }
 .editorial-panel form,
 .editorial-panel fieldset {
@@ -1997,4 +1998,11 @@ footer > div {
 .editorial-panel button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+.dashboard-head.oauth-consent-head h1 {
+  font-size: clamp(2rem, 5vw, 4rem);
+  line-height: 1.1;
+  letter-spacing: -0.04em;
+  overflow-wrap: anywhere;
 }

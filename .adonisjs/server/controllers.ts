@@ -9,6 +9,7 @@ export const controllers = {
   Home: () => import('#controllers/home_controller'),
   Mcp: () => import('#controllers/mcp_controller'),
   NewAccount: () => import('#controllers/new_account_controller'),
+  Oauth: () => import('#controllers/oauth_controller'),
   Playlists: () => import('#controllers/playlists_controller'),
   Session: () => import('#controllers/session_controller'),
   Upload: () => import('#controllers/upload_controller'),

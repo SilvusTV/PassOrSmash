@@ -26,6 +26,7 @@ export default function EditorialIndex(props: {
   proposals: Proposal[]
   jobs: Job[]
   connections: Connection[]
+  externalOAuth?: boolean
 }) {
   const [settings, setSettings] = useState(props.settings)
   const [topic, setTopic] = useState('')
@@ -312,8 +313,9 @@ export default function EditorialIndex(props: {
         <section className="editorial-panel">
           <h2>Connexions MCP</h2>
           <p>
-            Autorisez une identité OAuth existante. Les droits accordés sont limités aux portées de
-            son jeton ; aucune connexion MCP ne peut publier.
+            Ajoutez l’URL du MCP à votre application, connectez-vous avec Discord et acceptez les
+            droits demandés. L’accès apparaît automatiquement ici et peut être révoqué à tout
+            moment. Aucune connexion MCP ne peut publier.
           </p>
           {props.connections.map((connection) => (
             <article className="editorial-row" key={connection.id}>
@@ -335,56 +337,58 @@ export default function EditorialIndex(props: {
               )}
             </article>
           ))}
-          <form
-            onSubmit={(event) => {
-              event.preventDefault()
-              router.post('/admin/editorial/connections', {
-                connection: JSON.stringify({
-                  subject,
-                  client_id: clientId,
-                  scopes: accessScopes,
-                  expires_at: new Date(Date.now() + 30 * 86400000).toISOString(),
-                }),
-              })
-            }}
-          >
-            <label>
-              Identité OAuth (sub)
-              <input
-                required
-                value={subject}
-                onChange={(event) => setSubject(event.target.value)}
-              />
-            </label>
-            <label>
-              Identifiant client OAuth
-              <input
-                required
-                value={clientId}
-                onChange={(event) => setClientId(event.target.value)}
-              />
-            </label>
-            {['editorial:read', 'editorial:write', 'editorial:generate'].map((scope) => (
-              <label key={scope}>
+          {props.externalOAuth && (
+            <form
+              onSubmit={(event) => {
+                event.preventDefault()
+                router.post('/admin/editorial/connections', {
+                  connection: JSON.stringify({
+                    subject,
+                    client_id: clientId,
+                    scopes: accessScopes,
+                    expires_at: new Date(Date.now() + 30 * 86400000).toISOString(),
+                  }),
+                })
+              }}
+            >
+              <label>
+                Identité OAuth (sub)
                 <input
-                  type="checkbox"
-                  disabled={scope === 'editorial:read'}
-                  checked={accessScopes.includes(scope)}
-                  onChange={(event) =>
-                    setAccessScopes(
-                      event.target.checked
-                        ? [...accessScopes, scope]
-                        : accessScopes.filter((value) => value !== scope)
-                    )
-                  }
+                  required
+                  value={subject}
+                  onChange={(event) => setSubject(event.target.value)}
                 />
-                {scope}
               </label>
-            ))}
-            <button className="button" type="submit">
-              Autoriser pour 30 jours
-            </button>
-          </form>
+              <label>
+                Identifiant client OAuth
+                <input
+                  required
+                  value={clientId}
+                  onChange={(event) => setClientId(event.target.value)}
+                />
+              </label>
+              {['editorial:read', 'editorial:write', 'editorial:generate'].map((scope) => (
+                <label key={scope}>
+                  <input
+                    type="checkbox"
+                    disabled={scope === 'editorial:read'}
+                    checked={accessScopes.includes(scope)}
+                    onChange={(event) =>
+                      setAccessScopes(
+                        event.target.checked
+                          ? [...accessScopes, scope]
+                          : accessScopes.filter((value) => value !== scope)
+                      )
+                    }
+                  />
+                  {scope}
+                </label>
+              ))}
+              <button className="button" type="submit">
+                Autoriser pour 30 jours
+              </button>
+            </form>
+          )}
         </section>
       </div>
     </>

@@ -2,6 +2,12 @@
 import type { routes } from './index.ts'
 
 export interface ApiDefinition {
+  oauth: {
+    metadata: typeof routes['oauth.metadata']
+    openidMetadata: typeof routes['oauth.openidMetadata']
+    interaction: typeof routes['oauth.interaction']
+    decision: typeof routes['oauth.decision']
+  }
   mcp: typeof routes['mcp'] & {
     resourceMetadata: typeof routes['mcp.resourceMetadata']
     rootMetadata: typeof routes['mcp.rootMetadata']

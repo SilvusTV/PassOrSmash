@@ -7,6 +7,54 @@ import type { InferInput, SimpleError } from '@vinejs/vine/types'
 export type ParamValue = string | number | bigint | boolean
 
 export interface Registry {
+  'oauth.metadata': {
+    methods: ["GET","HEAD"]
+    pattern: '/.well-known/oauth-authorization-server'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/oauth_controller').default['metadata']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/oauth_controller').default['metadata']>>>
+    }
+  }
+  'oauth.openidMetadata': {
+    methods: ["GET","HEAD"]
+    pattern: '/.well-known/openid-configuration'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/oauth_controller').default['metadata']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/oauth_controller').default['metadata']>>>
+    }
+  }
+  'oauth.interaction': {
+    methods: ["GET","HEAD"]
+    pattern: '/oauth/interaction/:uid'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { uid: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/oauth_controller').default['interaction']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/oauth_controller').default['interaction']>>>
+    }
+  }
+  'oauth.decision': {
+    methods: ["POST"]
+    pattern: '/oauth/interaction/:uid'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { uid: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/oauth_controller').default['decision']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/oauth_controller').default['decision']>>>
+    }
+  }
   'mcp.resourceMetadata': {
     methods: ["GET","HEAD"]
     pattern: '/.well-known/oauth-protected-resource/mcp'

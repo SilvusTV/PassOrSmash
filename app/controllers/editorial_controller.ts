@@ -1,6 +1,7 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import db from '@adonisjs/lucid/services/db'
 import app from '@adonisjs/core/services/app'
+import env from '#start/env'
 import { randomUUID } from 'node:crypto'
 import { z } from 'zod'
 import Proposals, { audit } from '#services/editorial/proposals'
@@ -22,6 +23,7 @@ export default class EditorialController {
   async index({ auth, inertia }: HttpContext) {
     const settings = await getSettings()
     return inertia.render('editorial/index', {
+      externalOAuth: !!env.get('MCP_OAUTH_ISSUER'),
       settings,
       missing: readiness(settings),
       nextSlot:
@@ -99,6 +101,10 @@ export default class EditorialController {
     })
   }
   async connection(ctx: HttpContext) {
+    if (!env.get('MCP_OAUTH_ISSUER'))
+      return ctx.response.forbidden(
+        'Les accès MCP sont accordés depuis la page de consentement Discord.'
+      )
     return this.perform(ctx, async () => {
       const payload = z
         .strictObject({

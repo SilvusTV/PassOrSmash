@@ -4,6 +4,10 @@ type ParamValue = string | number | bigint | boolean
 
 export type ScannedRoutes = {
   ALL: {
+    'oauth.metadata': { paramsTuple?: []; params?: {} }
+    'oauth.openidMetadata': { paramsTuple?: []; params?: {} }
+    'oauth.interaction': { paramsTuple: [ParamValue]; params: {'uid': ParamValue} }
+    'oauth.decision': { paramsTuple: [ParamValue]; params: {'uid': ParamValue} }
     'mcp.resourceMetadata': { paramsTuple?: []; params?: {} }
     'mcp.rootMetadata': { paramsTuple?: []; params?: {} }
     'mcp': { paramsTuple?: []; params?: {} }
@@ -42,6 +46,9 @@ export type ScannedRoutes = {
     'auth.logout': { paramsTuple?: []; params?: {} }
   }
   GET: {
+    'oauth.metadata': { paramsTuple?: []; params?: {} }
+    'oauth.openidMetadata': { paramsTuple?: []; params?: {} }
+    'oauth.interaction': { paramsTuple: [ParamValue]; params: {'uid': ParamValue} }
     'mcp.resourceMetadata': { paramsTuple?: []; params?: {} }
     'mcp.rootMetadata': { paramsTuple?: []; params?: {} }
     'mcp': { paramsTuple?: []; params?: {} }
@@ -64,6 +71,9 @@ export type ScannedRoutes = {
     'playlists.edit': { paramsTuple: [ParamValue]; params: {'slug': ParamValue} }
   }
   HEAD: {
+    'oauth.metadata': { paramsTuple?: []; params?: {} }
+    'oauth.openidMetadata': { paramsTuple?: []; params?: {} }
+    'oauth.interaction': { paramsTuple: [ParamValue]; params: {'uid': ParamValue} }
     'mcp.resourceMetadata': { paramsTuple?: []; params?: {} }
     'mcp.rootMetadata': { paramsTuple?: []; params?: {} }
     'editorial.media': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
@@ -85,6 +95,7 @@ export type ScannedRoutes = {
     'playlists.edit': { paramsTuple: [ParamValue]; params: {'slug': ParamValue} }
   }
   POST: {
+    'oauth.decision': { paramsTuple: [ParamValue]; params: {'uid': ParamValue} }
     'mcp': { paramsTuple?: []; params?: {} }
     'editorial.settings': { paramsTuple?: []; params?: {} }
     'editorial.connection': { paramsTuple?: []; params?: {} }

@@ -12,6 +12,15 @@ import { controllers } from '#generated/controllers'
 import router from '@adonisjs/core/services/router'
 const McpController = () => import('#controllers/mcp_controller')
 const EditorialController = () => import('#controllers/editorial_controller')
+const OauthController = () => import('#controllers/oauth_controller')
+router
+  .get('/.well-known/oauth-authorization-server', [OauthController, 'metadata'])
+  .as('oauth.metadata')
+router
+  .get('/.well-known/openid-configuration', [OauthController, 'metadata'])
+  .as('oauth.openidMetadata')
+router.get('/oauth/interaction/:uid', [OauthController, 'interaction'])
+router.post('/oauth/interaction/:uid', [OauthController, 'decision'])
 
 router
   .get('/.well-known/oauth-protected-resource/mcp', [McpController, 'metadata'])

@@ -144,6 +144,8 @@ Les formats acceptés sont JPG, PNG, WebP et GIF, avec une taille maximale de 8 
 
 Le serveur MCP et le studio de validation éditoriale sont décrits dans [le guide de mise en service](docs/mcp-editorial-mise-en-service.md). L’automatisation reste désactivée tant que les accès, fournisseurs et créneaux ne sont pas configurés.
 
+Pour ajouter le MCP avec votre connexion Discord existante, suivre [le guide de connexion MCP avec Discord](docs/mcp-discord-connexion.md). L’autorisation est intégrée au site ; aucun fournisseur OAuth externe n’est nécessaire.
+
 ```bash
 npm run dev        # serveur avec rechargement à chaud
 npm run typecheck  # vérification TypeScript backend + frontend

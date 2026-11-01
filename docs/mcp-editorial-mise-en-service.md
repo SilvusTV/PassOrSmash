@@ -1,17 +1,19 @@
 # MCP éditorial : implémentation et mise en service
 
+**Mise à jour — connexion Discord intégrée :** le site fournit maintenant l’autorisation OAuth nécessaire au MCP. Pour l’ajouter à votre client, suivre [le guide de connexion Discord](mcp-discord-connexion.md). Les instructions de fournisseur externe ci-dessous ne concernent que ce mode optionnel ; laisser issuer et JWKS vides pour le mode intégré.
+
 ## État du développement
 
 Le serveur distant `/mcp`, les 19 outils du cahier des charges, les services partagés, le studio `/admin/editorial`, les propositions privées, les révisions et la publication humaine atomique sont implémentés. Les tâches sont conservées dans PostgreSQL et exécutées par `node ace editorial:tick`. Aucun outil MCP ne publie, ne refuse, ne rouvre, ni ne modifie les réglages.
 
-L’automatisation est désactivée par défaut. Aucun fournisseur, destinataire, administrateur ou secret de production n’a été configuré. Les migrations ont été vérifiées dans une base locale de recette distincte ; elles doivent être appliquées dans l’environnement cible au déploiement. Le branchement OAuth avec le client final, la vérification visuelle du studio et un essai réel des fournisseurs restent requis avant activation.
+L’automatisation est désactivée par défaut. Aucun fournisseur de génération, destinataire ou administrateur de production n’a été configuré. L’autorisation MCP intégrée réutilise Discord et crée ses clés de signature persistantes. Les migrations doivent être appliquées dans l’environnement cible au déploiement. Le branchement avec le client final et un essai réel des fournisseurs restent requis avant activation.
 
 ## Choix techniques
 
 - SDK officiel épinglé : `@modelcontextprotocol/server` **2.4.0**, adaptateur Node **2.1.2**, Zod **4.6.7**. Les versions des deux paquets MCP ne sont pas identiques dans le registre npm ; leurs dépendances sont verrouillées dans `package-lock.json`.
 - Transport Streamable HTTP via `createMcpHandler` et `toNodeHandler`, sans session contenant le workflow. Le SDK gère le protocole et les erreurs de transport.
 - Référence de compatibilité initiale : client Streamable HTTP parlant **2025-11-25**, testé en mémoire via le SDK ; le gestionnaire accepte aussi la version **2026-07-28** prise en charge par le SDK. Client de recette visé : [MCP Inspector](https://github.com/modelcontextprotocol/inspector). La connexion depuis un client final n’a pas encore été validée.
-- Autorisation : serveur OAuth/OIDC externe, flux Authorization Code avec PKCE S256. Le site agit comme serveur de ressources ; il ne réimplémente pas un serveur d’autorisation. Métadonnées RFC 9728 sur `/.well-known/oauth-protected-resource/mcp` et à la racine.
+- Autorisation : serveur intégré `oidc-provider` avec connexion Discord et consentement administrateur, flux Authorization Code avec PKCE S256. Un fournisseur OAuth externe reste optionnel. Métadonnées RFC 9728 sur `/.well-known/oauth-protected-resource/mcp` et à la racine.
 - Planification : commande serveur appelée toutes les minutes par l’hébergeur. File durable PostgreSQL, réservation d’une tâche par verrou de ligne `FOR UPDATE SKIP LOCKED`, bail de 15 minutes avec jeton, reprises et points de progression persistants.
 - Images : stockage local privé dans `tmp/editorial`, sans bucket public. Ce répertoire doit résider sur un **volume persistant partagé** entre les processus web et les workers. Ne jamais le servir directement par le proxy. Les médias passent par une route qui vérifie leur accès à chaque requête.
 
@@ -28,7 +30,9 @@ Références vérifiées lors de l’implémentation : [SDK TypeScript officiel]
 
 Chaque connexion et proposition appartient au compte autorisé. La V1 ne définit pas de rédaction partagée entre plusieurs comptes : un autre administrateur ne voit pas les brouillons de son collègue. Choisir comme compte de préparation celui qui examinera les propositions automatiques.
 
-## Branchement OAuth du client MCP
+## Branchement OAuth externe optionnel
+
+Pour la connexion Discord intégrée, utiliser [ce guide](mcp-discord-connexion.md). La procédure qui suit s’applique uniquement si vous choisissez un fournisseur externe.
 
 Configurer chez le fournisseur OAuth :
 
@@ -186,12 +190,13 @@ En cas d’échec, consulter l’état et l’erreur dans le studio ou `get_job`
 Les tests PostgreSQL sont explicitement réservés à la base jetable `passorsmash_editorial_test` : ils en réinitialisent les données. Ne jamais les lancer contre une base contenant des données à conserver.
 
 ```powershell
-docker compose up -d postgres
+docker compose up -d
 # Créer passorsmash_editorial_test une seule fois dans PostgreSQL.
 $env:DB_DATABASE='passorsmash_editorial_test'
 node ace migration:run
 $env:EDITORIAL_DB_TESTS='1'
-node ace test --files='tests/unit/editorial.spec.ts' --files='tests/functional/editorial.spec.ts' --files='tests/browser/editorial.spec.ts'
+npx playwright install chromium --only-shell
+node ace test
 npm run typecheck
 npm run lint
 npm run build
@@ -199,4 +204,4 @@ npm run build
 
 Couverture : schémas et interdiction des champs de publication, outils selon portées, destinations réseau, changements d’heure, idempotence et modifications concurrentes, gel en revue, approbation humaine unique, rollback des publications partielles, refus/réouverture, confidentialité des médias, autorisations OAuth locales, limite de budget et reprise simulée d’une génération. Le test navigateur couvre l’édition desktop/mobile et le refus d’un compte ordinaire ; il requiert le navigateur Playwright installé.
 
-TypeScript, ESLint et le build de production ont réussi. Les **5 tests unitaires** passent sur la version finale. Une première passe de **14 tests** unitaires et PostgreSQL a également réussi. Les ajouts ultérieurs de tests OAuth et navigateur, ainsi que la réexécution PostgreSQL après les dernières corrections, restent à valider : l’exécution a été bloquée par une limite d’utilisation empêchant la revue automatique d’autorisation de l’environnement de développement. Un essai de bout en bout avec OAuth réel, notifications réelles, fournisseur réel et publication manuelle de démonstration reste nécessaire avant production.
+La recette complète sous **Node.js 24 LTS** réussit : **31 tests** unitaires, PostgreSQL, stockage S3 local et navigateur. TypeScript, ESLint et le build de production réussissent également. Les parcours incluent le consentement OAuth, la reprise après Discord simulé, les codes à usage unique, PKCE, l’expiration et l’audience des JWT, la rotation et le rejeu des refresh tokens, la révocation et la réautorisation. Un dernier essai avec votre compte Discord réel et le client final reste à effectuer après déploiement. L’essai des fournisseurs de génération et de notification en production reste indépendant du branchement MCP.

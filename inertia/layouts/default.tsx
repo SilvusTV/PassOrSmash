@@ -22,6 +22,7 @@ export default function Layout({ children }: { children: ReactElement }) {
   const isPrivatePage =
     url.startsWith('/dashboard') ||
     url.startsWith('/admin/') ||
+    url.startsWith('/oauth/') ||
     url.startsWith('/auth/') ||
     url.startsWith('/login') ||
     url.startsWith('/signup') ||
