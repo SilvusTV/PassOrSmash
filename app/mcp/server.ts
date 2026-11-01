@@ -4,6 +4,9 @@ import { randomUUID } from 'node:crypto'
 import db from '@adonisjs/lucid/services/db'
 import Playlist from '#models/playlist'
 import PlaylistItem from '#models/playlist_item'
+import User from '#models/user'
+import AdminManagement from '#services/admin/management'
+import { AdminError, playlistEditSchema } from '#services/admin/contracts'
 import Proposals, { audit, idempotent } from '#services/editorial/proposals'
 import EditorialJobs from '#services/editorial/jobs'
 import { getSettings, readiness, scheduleSlots } from '#services/editorial/settings'
@@ -68,14 +71,16 @@ export function createEditorialServer(actor: Actor) {
           }
         } catch (error) {
           const failure =
-            error instanceof EditorialError
-              ? error
-              : error instanceof z.ZodError
-                ? new EditorialError(
-                    'VALIDATION_FAILED',
-                    'Entrée ou sortie non conforme au schéma.'
-                  )
-                : new EditorialError('PROVIDER_UNAVAILABLE', 'Opération indisponible.', true)
+            error instanceof AdminError
+              ? new EditorialError(error.code, error.message)
+              : error instanceof EditorialError
+                ? error
+                : error instanceof z.ZodError
+                  ? new EditorialError(
+                      'VALIDATION_FAILED',
+                      'Entrée ou sortie non conforme au schéma.'
+                    )
+                  : new EditorialError('PROVIDER_UNAVAILABLE', 'Opération indisponible.', true)
           return {
             isError: true,
             content: [{ type: 'text', text: JSON.stringify(failure.toJSON()) }],
@@ -181,6 +186,14 @@ export function createEditorialServer(actor: Actor) {
         id: playlist.id,
         title: playlist.title,
         description: playlist.description,
+        ...(playlist.userId === actor.userId
+          ? {
+              edit: await new AdminManagement().playlist(
+                await User.findOrFail(actor.userId),
+                playlist_id
+              ),
+            }
+          : {}),
         items: items.map((item) => ({
           id: item.id,
           title: item.title,
@@ -190,6 +203,27 @@ export function createEditorialServer(actor: Actor) {
       }
     },
     true
+  )
+  tool(
+    'update_playlist',
+    'Modifie une playlist existante appartenant au compte connecté. Lire get_playlist et utiliser edit.revision avant toute écriture. Fournir tous les éléments dans leur ordre final : conserver leurs IDs préserve leurs votes ; omettre un élément supprime cet élément et ses votes. Sans ID, un élément est ajouté. Le propriétaire et le lien restent inchangés. La visibilité public publie immédiatement la playlist.',
+    'editorial:write',
+    {
+      playlist_id: z.number().int().positive(),
+      ...playlistEditSchema.shape,
+    },
+    async ({ playlist_id, ...input }) => {
+      const playlist = await Playlist.find(playlist_id)
+      if (!playlist || playlist.userId !== actor.userId)
+        throw new EditorialError(
+          'NOT_FOUND',
+          'Playlist introuvable ou non modifiable par ce compte.'
+        )
+      const user = await User.findOrFail(actor.userId)
+      const management = new AdminManagement()
+      await management.updatePlaylist(user, playlist_id, input)
+      return management.playlist(user, playlist_id)
+    }
   )
   tool(
     'list_proposals',

@@ -7,6 +7,8 @@ import PlaylistItem from '#models/playlist_item'
 import Vote from '#models/vote'
 import { randomUUID } from 'node:crypto'
 import AdminManagement from '#services/admin/management'
+import { createMcpHandler } from '@modelcontextprotocol/server'
+import { createEditorialServer } from '../../app/mcp/server.js'
 
 if (process.env.EDITORIAL_DB_TESTS === '1') {
   test.group('Global administration integration', (group) => {
@@ -108,6 +110,67 @@ if (process.env.EDITORIAL_DB_TESTS === '1') {
         })),
       }
     }
+    test('MCP edits an owned playlist, preserves votes and rejects stale or foreign writes', async ({
+      assert,
+    }) => {
+      playlist.userId = admin.id
+      await playlist.save()
+      const handler = createMcpHandler(() =>
+        createEditorialServer({
+          userId: admin.id,
+          identity: 'mcp-test',
+          scopes: ['editorial:read', 'editorial:write'],
+        })
+      )
+      async function call(name: string, args: unknown) {
+        const response = await handler.fetch(
+          new Request('http://localhost/mcp', {
+            method: 'POST',
+            headers: {
+              'content-type': 'application/json',
+              'accept': 'application/json, text/event-stream',
+              'mcp-protocol-version': '2025-11-25',
+            },
+            body: JSON.stringify({
+              jsonrpc: '2.0',
+              id: 1,
+              method: 'tools/call',
+              params: { name, arguments: args },
+            }),
+          })
+        )
+        const raw = await response.text()
+        return JSON.parse(raw.startsWith('event:') ? raw.split('data: ')[1].split('\n')[0] : raw)
+      }
+      try {
+        const snapshot = await call('get_playlist', { playlist_id: playlist.id })
+        const current = await editing()
+        assert.equal(
+          snapshot.result.structuredContent.data.edit.revision,
+          current.expected_revision
+        )
+        const input = {
+          ...(await editing()),
+          playlist_id: playlist.id,
+          title: 'Modification depuis le MCP',
+        }
+        const saved = await call('update_playlist', input)
+        assert.isUndefined(saved.result.isError)
+        assert.equal(saved.result.structuredContent.data.playlist.title, input.title)
+        assert.lengthOf(await Vote.all(), 3)
+        const stale = await call('update_playlist', input)
+        assert.isTrue(stale.result.isError)
+        assert.include(stale.result.content[0].text, 'REVISION_CONFLICT')
+        const foreign = await call('update_playlist', {
+          ...input,
+          playlist_id: foreignItem.playlistId,
+        })
+        assert.isTrue(foreign.result.isError)
+        assert.include(foreign.result.content[0].text, 'NOT_FOUND')
+      } finally {
+        await handler.close()
+      }
+    })
     test('global statistics include every account and both playlist visibilities', async ({
       assert,
     }) => {

@@ -28,7 +28,9 @@ La suppression exige de recopier l’identifiant de partage et supprime la playl
 
 ## Studio et confidentialité
 
-La navigation donne accès au studio existant. Le studio reste centré sur les propositions du compte connecté ; le compteur de propositions en attente du tableau de bord est global. Les outils et permissions MCP restent inchangés.
+La navigation donne accès au studio existant. Le studio reste centré sur les propositions du compte connecté ; le compteur de propositions en attente du tableau de bord est global.
+
+Le MCP permet aussi de modifier les playlists existantes du compte connecté avec `update_playlist` et la portée `editorial:write`. `get_playlist` fournit le bloc `edit`, dont `revision` devient `expected_revision` lors de l’écriture. Fournir le titre, la description, la visibilité (`public` ou `private`), la couleur et la liste complète des éléments dans leur ordre final. Conserver l’ID d’un élément conserve ses votes ; omettre un ancien élément le supprime avec ses votes ; un élément sans ID est ajouté. La modification s’applique immédiatement, y compris le changement de visibilité. Les playlists d’autres comptes restent non modifiables par ce MCP. Une version périmée est refusée avec `REVISION_CONFLICT` et nécessite une nouvelle lecture. Les outils de publication des propositions éditoriales restent réservés au studio.
 
 Les pages administratives sont réservées aux administrateurs, exclues de l’indexation et servies sans cache. L’aperçu d’une playlist privée peut afficher ses médias éditoriaux publiés ; il ne donne pas accès aux images de brouillons des autres comptes. Les mots de passe et secrets de connexion ne sont pas transmis aux pages d’administration.
 

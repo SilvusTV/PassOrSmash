@@ -103,8 +103,9 @@ test.group('Editorial contracts', () => {
         )
         const names = payload.result.tools.map((tool: { name: string }) => tool.name)
         assert.isFalse(names.some((name: string) => /publish|approve|sql|exec/.test(name)))
-        assert.equal(names.length, scopes.length === 1 ? 9 : 19)
+        assert.equal(names.length, scopes.length === 1 ? 9 : 20)
         assert.equal(names.includes('create_proposal'), scopes.includes('editorial:write'))
+        assert.equal(names.includes('update_playlist'), scopes.includes('editorial:write'))
       } finally {
         await handler.close()
       }
