@@ -13,6 +13,20 @@ import router from '@adonisjs/core/services/router'
 const McpController = () => import('#controllers/mcp_controller')
 const EditorialController = () => import('#controllers/editorial_controller')
 const OauthController = () => import('#controllers/oauth_controller')
+const AdminController = () => import('#controllers/admin_controller')
+router
+  .group(() => {
+    router.get('/', [AdminController, 'index'])
+    router.get('/users', [AdminController, 'users'])
+    router.get('/users/:id', [AdminController, 'user'])
+    router.post('/users/:id/status', [AdminController, 'suspend'])
+    router.get('/playlists', [AdminController, 'playlists'])
+    router.get('/playlists/:id', [AdminController, 'playlist'])
+    router.post('/playlists/:id', [AdminController, 'updatePlaylist'])
+    router.post('/playlists/:id/delete', [AdminController, 'deletePlaylist'])
+  })
+  .prefix('/admin')
+  .use([middleware.auth(), middleware.editorialAdmin()])
 router
   .get('/.well-known/oauth-authorization-server', [OauthController, 'metadata'])
   .as('oauth.metadata')

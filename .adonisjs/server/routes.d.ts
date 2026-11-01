@@ -4,6 +4,14 @@ type ParamValue = string | number | bigint | boolean
 
 export type ScannedRoutes = {
   ALL: {
+    'admin.index': { paramsTuple?: []; params?: {} }
+    'admin.users': { paramsTuple?: []; params?: {} }
+    'admin.user': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'admin.suspend': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'admin.playlists': { paramsTuple?: []; params?: {} }
+    'admin.playlist': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'admin.update_playlist': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'admin.delete_playlist': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'oauth.metadata': { paramsTuple?: []; params?: {} }
     'oauth.openidMetadata': { paramsTuple?: []; params?: {} }
     'oauth.interaction': { paramsTuple: [ParamValue]; params: {'uid': ParamValue} }
@@ -46,6 +54,11 @@ export type ScannedRoutes = {
     'auth.logout': { paramsTuple?: []; params?: {} }
   }
   GET: {
+    'admin.index': { paramsTuple?: []; params?: {} }
+    'admin.users': { paramsTuple?: []; params?: {} }
+    'admin.user': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'admin.playlists': { paramsTuple?: []; params?: {} }
+    'admin.playlist': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'oauth.metadata': { paramsTuple?: []; params?: {} }
     'oauth.openidMetadata': { paramsTuple?: []; params?: {} }
     'oauth.interaction': { paramsTuple: [ParamValue]; params: {'uid': ParamValue} }
@@ -71,6 +84,11 @@ export type ScannedRoutes = {
     'playlists.edit': { paramsTuple: [ParamValue]; params: {'slug': ParamValue} }
   }
   HEAD: {
+    'admin.index': { paramsTuple?: []; params?: {} }
+    'admin.users': { paramsTuple?: []; params?: {} }
+    'admin.user': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'admin.playlists': { paramsTuple?: []; params?: {} }
+    'admin.playlist': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'oauth.metadata': { paramsTuple?: []; params?: {} }
     'oauth.openidMetadata': { paramsTuple?: []; params?: {} }
     'oauth.interaction': { paramsTuple: [ParamValue]; params: {'uid': ParamValue} }
@@ -95,6 +113,9 @@ export type ScannedRoutes = {
     'playlists.edit': { paramsTuple: [ParamValue]; params: {'slug': ParamValue} }
   }
   POST: {
+    'admin.suspend': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'admin.update_playlist': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'admin.delete_playlist': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'oauth.decision': { paramsTuple: [ParamValue]; params: {'uid': ParamValue} }
     'mcp': { paramsTuple?: []; params?: {} }
     'editorial.settings': { paramsTuple?: []; params?: {} }

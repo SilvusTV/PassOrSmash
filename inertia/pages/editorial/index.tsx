@@ -2,6 +2,7 @@
 import { Head, Link, router } from '@inertiajs/react'
 import { useState } from 'react'
 import type { Proposal, Settings } from '~/editorial_types'
+import { AdminNav } from '~/components/admin'
 
 type Job = {
   id: string
@@ -49,6 +50,7 @@ export default function EditorialIndex(props: {
         </div>
       </section>
       <div className="editorial-layout builder-form">
+        <AdminNav />
         <section className="editorial-panel">
           <h2>Propositions</h2>
           <button

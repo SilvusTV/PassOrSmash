@@ -2,6 +2,16 @@
 import type { routes } from './index.ts'
 
 export interface ApiDefinition {
+  admin: {
+    index: typeof routes['admin.index']
+    users: typeof routes['admin.users']
+    user: typeof routes['admin.user']
+    suspend: typeof routes['admin.suspend']
+    playlists: typeof routes['admin.playlists']
+    playlist: typeof routes['admin.playlist']
+    updatePlaylist: typeof routes['admin.update_playlist']
+    deletePlaylist: typeof routes['admin.delete_playlist']
+  }
   oauth: {
     metadata: typeof routes['oauth.metadata']
     openidMetadata: typeof routes['oauth.openidMetadata']

@@ -10,6 +10,10 @@ import type { NextFn } from '@adonisjs/core/types/http'
 export default class SilentAuthMiddleware {
   async handle(ctx: HttpContext, next: NextFn) {
     await ctx.auth.check()
+    if (ctx.auth.user?.suspendedAt) {
+      await ctx.auth.use('web').logout()
+      return ctx.response.forbidden('Ce compte est suspendu. Contactez l’administrateur du site.')
+    }
 
     return next()
   }

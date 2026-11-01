@@ -49,7 +49,7 @@ export default class HomeController {
     response
       .type('text/plain')
       .send(
-        `User-agent: *\nAllow: /\nDisallow: /dashboard\nDisallow: /playlists/\nDisallow: /auth/\nDisallow: /login\nDisallow: /signup\nSitemap: ${origin}/sitemap.xml`
+        `User-agent: *\nAllow: /\nDisallow: /admin\nDisallow: /oauth/\nDisallow: /dashboard\nDisallow: /playlists/\nDisallow: /auth/\nDisallow: /login\nDisallow: /signup\nSitemap: ${origin}/sitemap.xml`
       )
   }
 

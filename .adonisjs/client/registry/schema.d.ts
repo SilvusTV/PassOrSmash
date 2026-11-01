@@ -7,6 +7,102 @@ import type { InferInput, SimpleError } from '@vinejs/vine/types'
 export type ParamValue = string | number | bigint | boolean
 
 export interface Registry {
+  'admin.index': {
+    methods: ["GET","HEAD"]
+    pattern: '/admin'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin_controller').default['index']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin_controller').default['index']>>>
+    }
+  }
+  'admin.users': {
+    methods: ["GET","HEAD"]
+    pattern: '/admin/users'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin_controller').default['users']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin_controller').default['users']>>>
+    }
+  }
+  'admin.user': {
+    methods: ["GET","HEAD"]
+    pattern: '/admin/users/:id'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin_controller').default['user']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin_controller').default['user']>>>
+    }
+  }
+  'admin.suspend': {
+    methods: ["POST"]
+    pattern: '/admin/users/:id/status'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin_controller').default['suspend']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin_controller').default['suspend']>>>
+    }
+  }
+  'admin.playlists': {
+    methods: ["GET","HEAD"]
+    pattern: '/admin/playlists'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin_controller').default['playlists']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin_controller').default['playlists']>>>
+    }
+  }
+  'admin.playlist': {
+    methods: ["GET","HEAD"]
+    pattern: '/admin/playlists/:id'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin_controller').default['playlist']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin_controller').default['playlist']>>>
+    }
+  }
+  'admin.update_playlist': {
+    methods: ["POST"]
+    pattern: '/admin/playlists/:id'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin_controller').default['updatePlaylist']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin_controller').default['updatePlaylist']>>>
+    }
+  }
+  'admin.delete_playlist': {
+    methods: ["POST"]
+    pattern: '/admin/playlists/:id/delete'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admin_controller').default['deletePlaylist']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admin_controller').default['deletePlaylist']>>>
+    }
+  }
   'oauth.metadata': {
     methods: ["GET","HEAD"]
     pattern: '/.well-known/oauth-authorization-server'

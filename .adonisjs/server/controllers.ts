@@ -4,6 +4,7 @@
  */
 
 export const controllers = {
+  Admin: () => import('#controllers/admin_controller'),
   DiscordAuth: () => import('#controllers/discord_auth_controller'),
   Editorial: () => import('#controllers/editorial_controller'),
   Home: () => import('#controllers/home_controller'),

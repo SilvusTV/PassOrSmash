@@ -255,8 +255,21 @@ export default class EditorialController {
       .where('playlist.is_public', true)
       .whereRaw("proposal.content->'items' @> ?::jsonb", [JSON.stringify([{ media_id: media.id }])])
       .first()
-    if (!publicUse && !(isEditorialAdmin(auth.user) && auth.user!.id === media.user_id))
-      return response.notFound()
+    if (!publicUse) {
+      if (!isEditorialAdmin(auth.user)) return response.notFound()
+      if (auth.user!.id !== media.user_id) {
+        const playlistUse = await db
+          .from('playlist_items')
+          .where('image_url', `/editorial/media/${media.id}`)
+          .first()
+        const approvedUse = await db
+          .from('editorial_proposals')
+          .where('status', 'published')
+          .whereRaw("content->'items' @> ?::jsonb", [JSON.stringify([{ media_id: media.id }])])
+          .first()
+        if (!playlistUse || !approvedUse) return response.notFound()
+      }
+    }
     response.header('Cache-Control', 'private, no-store').header('Content-Type', 'image/png')
     return response.download(app.tmpPath('editorial', media.path))
   }

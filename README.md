@@ -31,6 +31,7 @@ Le créateur se connecte avec Discord, ajoute ses images par URL ou import, puis
 - Vote Smash/Pass accessible sans compte
 - Résultats et classement communautaire
 - Tableau de bord pour gérer ses playlists
+- [Administration globale des comptes et playlists, statistiques et accès au studio](docs/administration.md)
 - Page Explorer pour découvrir les playlists publiques
 - Interface responsive et accessible
 - Sitemap, `robots.txt` et métadonnées SEO

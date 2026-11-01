@@ -6,6 +6,54 @@ import type { ApiDefinition } from './tree.d.ts'
 const placeholder: any = {}
 
 const routes = {
+  'admin.index': {
+    methods: ["GET","HEAD"],
+    pattern: '/admin',
+    tokens: [{"old":"/admin","type":0,"val":"admin","end":""}],
+    types: placeholder as Registry['admin.index']['types'],
+  },
+  'admin.users': {
+    methods: ["GET","HEAD"],
+    pattern: '/admin/users',
+    tokens: [{"old":"/admin/users","type":0,"val":"admin","end":""},{"old":"/admin/users","type":0,"val":"users","end":""}],
+    types: placeholder as Registry['admin.users']['types'],
+  },
+  'admin.user': {
+    methods: ["GET","HEAD"],
+    pattern: '/admin/users/:id',
+    tokens: [{"old":"/admin/users/:id","type":0,"val":"admin","end":""},{"old":"/admin/users/:id","type":0,"val":"users","end":""},{"old":"/admin/users/:id","type":1,"val":"id","end":""}],
+    types: placeholder as Registry['admin.user']['types'],
+  },
+  'admin.suspend': {
+    methods: ["POST"],
+    pattern: '/admin/users/:id/status',
+    tokens: [{"old":"/admin/users/:id/status","type":0,"val":"admin","end":""},{"old":"/admin/users/:id/status","type":0,"val":"users","end":""},{"old":"/admin/users/:id/status","type":1,"val":"id","end":""},{"old":"/admin/users/:id/status","type":0,"val":"status","end":""}],
+    types: placeholder as Registry['admin.suspend']['types'],
+  },
+  'admin.playlists': {
+    methods: ["GET","HEAD"],
+    pattern: '/admin/playlists',
+    tokens: [{"old":"/admin/playlists","type":0,"val":"admin","end":""},{"old":"/admin/playlists","type":0,"val":"playlists","end":""}],
+    types: placeholder as Registry['admin.playlists']['types'],
+  },
+  'admin.playlist': {
+    methods: ["GET","HEAD"],
+    pattern: '/admin/playlists/:id',
+    tokens: [{"old":"/admin/playlists/:id","type":0,"val":"admin","end":""},{"old":"/admin/playlists/:id","type":0,"val":"playlists","end":""},{"old":"/admin/playlists/:id","type":1,"val":"id","end":""}],
+    types: placeholder as Registry['admin.playlist']['types'],
+  },
+  'admin.update_playlist': {
+    methods: ["POST"],
+    pattern: '/admin/playlists/:id',
+    tokens: [{"old":"/admin/playlists/:id","type":0,"val":"admin","end":""},{"old":"/admin/playlists/:id","type":0,"val":"playlists","end":""},{"old":"/admin/playlists/:id","type":1,"val":"id","end":""}],
+    types: placeholder as Registry['admin.update_playlist']['types'],
+  },
+  'admin.delete_playlist': {
+    methods: ["POST"],
+    pattern: '/admin/playlists/:id/delete',
+    tokens: [{"old":"/admin/playlists/:id/delete","type":0,"val":"admin","end":""},{"old":"/admin/playlists/:id/delete","type":0,"val":"playlists","end":""},{"old":"/admin/playlists/:id/delete","type":1,"val":"id","end":""},{"old":"/admin/playlists/:id/delete","type":0,"val":"delete","end":""}],
+    types: placeholder as Registry['admin.delete_playlist']['types'],
+  },
   'oauth.metadata': {
     methods: ["GET","HEAD"],
     pattern: '/.well-known/oauth-authorization-server',

@@ -13,6 +13,11 @@ type ExtractProps<T> =
 declare module '@adonisjs/inertia/types' {
   export interface InertiaPages {
     'about': ExtractProps<(typeof import('../../inertia/pages/about.tsx'))['default']>
+    'admin/index': ExtractProps<(typeof import('../../inertia/pages/admin/index.tsx'))['default']>
+    'admin/playlist': ExtractProps<(typeof import('../../inertia/pages/admin/playlist.tsx'))['default']>
+    'admin/playlists': ExtractProps<(typeof import('../../inertia/pages/admin/playlists.tsx'))['default']>
+    'admin/user': ExtractProps<(typeof import('../../inertia/pages/admin/user.tsx'))['default']>
+    'admin/users': ExtractProps<(typeof import('../../inertia/pages/admin/users.tsx'))['default']>
     'auth/error': ExtractProps<(typeof import('../../inertia/pages/auth/error.tsx'))['default']>
     'auth/login': ExtractProps<(typeof import('../../inertia/pages/auth/login.tsx'))['default']>
     'auth/signup': ExtractProps<(typeof import('../../inertia/pages/auth/signup.tsx'))['default']>

@@ -3,6 +3,7 @@ import { Head, Link, router } from '@inertiajs/react'
 import { useState } from 'react'
 import type { Content, Item, Proposal } from '~/editorial_types'
 import PublicPlaylist from '../playlists/show'
+import { AdminNav } from '~/components/admin'
 
 type Media = {
   id: string
@@ -72,6 +73,7 @@ function EditorialEditor({
         </div>
       </section>
       <div className="editorial-layout builder-form">
+        <AdminNav />
         {proposal.content.items.length > 0 &&
           proposal.content.items.every((item) => item.media_id) && (
             <section className="editorial-panel">

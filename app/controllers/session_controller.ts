@@ -10,6 +10,7 @@ export default class SessionController {
   async store({ request, auth, response }: HttpContext) {
     const { email, password } = await request.validateUsing(loginValidator)
     const user = await User.verifyCredentials(email, password)
+    if (user.suspendedAt) return response.forbidden('Ce compte est suspendu.')
 
     await auth.use('web').login(user)
     response.redirect().toRoute('home')

@@ -1,0 +1,312 @@
+import { test } from '@japa/runner'
+import db from '@adonisjs/lucid/services/db'
+import env from '#start/env'
+import User from '#models/user'
+import Playlist from '#models/playlist'
+import PlaylistItem from '#models/playlist_item'
+import Vote from '#models/vote'
+import { randomUUID } from 'node:crypto'
+import AdminManagement from '#services/admin/management'
+
+if (process.env.EDITORIAL_DB_TESTS === '1') {
+  test.group('Global administration integration', (group) => {
+    const service = new AdminManagement()
+    let admin: User
+    let owner: User
+    let other: User
+    let playlist: Playlist
+    let foreignItem: PlaylistItem
+    group.each.setup(async () => {
+      if (env.get('DB_DATABASE') !== 'passorsmash_editorial_test')
+        throw new Error('Dedicated test database required.')
+      await db.rawQuery(
+        'TRUNCATE users, playlists, playlist_items, votes, editorial_proposals, editorial_jobs, editorial_audit, editorial_operations, editorial_media, editorial_connections, admin_audit RESTART IDENTITY CASCADE'
+      )
+      admin = await User.create({
+        email: 'admin@example.com',
+        fullName: 'Administrateur',
+        password: 'test-password',
+        discordId: 'global-test-admin',
+      })
+      owner = await User.create({
+        email: 'owner@example.com',
+        fullName: 'Créateur',
+        username: 'createur',
+        password: 'test-password',
+        discordId: 'global-test-owner',
+      })
+      other = await User.create({
+        email: 'other@example.com',
+        password: 'test-password',
+        discordId: 'global-test-other',
+      })
+      env.set('EDITORIAL_ADMIN_DISCORD_IDS', 'global-test-admin')
+      playlist = await Playlist.create({
+        userId: owner.id,
+        title: 'Sélection privée',
+        slug: 'selection-privee',
+        isPublic: false,
+        accent: 'lime',
+      })
+      const second = await Playlist.create({
+        userId: owner.id,
+        title: 'Sélection publique',
+        slug: 'selection-publique',
+        isPublic: true,
+        accent: 'lime',
+      })
+      const third = await Playlist.create({
+        userId: other.id,
+        title: 'Autre sélection',
+        slug: 'autre-selection',
+        isPublic: true,
+        accent: 'violet',
+      })
+      for (const entry of [playlist, second, third])
+        await PlaylistItem.createMany(
+          [0, 1].map((index) => ({
+            playlistId: entry.id,
+            position: index,
+            title: `Image ${index + 1}`,
+            imageUrl: 'https://example.com/image.png',
+          }))
+        )
+      const firstItem = await PlaylistItem.query()
+        .where('playlist_id', playlist.id)
+        .orderBy('position')
+        .firstOrFail()
+      foreignItem = await PlaylistItem.query().where('playlist_id', third.id).firstOrFail()
+      await Vote.createMany([
+        { playlistItemId: firstItem.id, userId: owner.id, visitorId: 'visitor-one', isSmash: true },
+        {
+          playlistItemId: foreignItem.id,
+          userId: other.id,
+          visitorId: 'visitor-two',
+          isSmash: false,
+        },
+        {
+          playlistItemId: foreignItem.id,
+          userId: owner.id,
+          visitorId: 'visitor-one',
+          isSmash: true,
+        },
+      ])
+    })
+    async function editing() {
+      const current = await service.playlist(admin, playlist.id)
+      return {
+        expected_revision: current.revision,
+        title: current.playlist.title,
+        description: current.playlist.description || '',
+        visibility: current.playlist.isPublic ? ('public' as const) : ('private' as const),
+        accent: 'lime' as const,
+        items: current.items.map(({ id, title, description, image_url }) => ({
+          id,
+          title,
+          description,
+          image_url,
+        })),
+      }
+    }
+    test('global statistics include every account and both playlist visibilities', async ({
+      assert,
+    }) => {
+      const overview = await service.overview(admin)
+      assert.equal(overview.totals.accounts, 3)
+      assert.equal(overview.totals.playlists, 3)
+      assert.equal(overview.totals.public_playlists, 2)
+      assert.equal(overview.totals.private_playlists, 1)
+      assert.equal(overview.totals.items, 6)
+      assert.equal(overview.totals.votes, 3)
+      assert.equal(overview.totals.smashes, 2)
+      assert.equal(overview.totals.participants, 2)
+      assert.lengthOf(overview.trend, 30)
+      const user = await service.user(admin, owner.id)
+      assert.equal(user.account.playlistCount, 2)
+      assert.equal(user.account.voteCount, 2)
+      assert.isFalse('password' in user.account)
+      assert.isFalse('visitor_id' in overview.totals)
+    })
+    test('search, visibility, ownership and pagination are applied before limiting results', async ({
+      assert,
+    }) => {
+      const privatePage = await service.playlists(admin, { q: '', page: 1, visibility: 'private' })
+      assert.equal(privatePage.pagination.total, 1)
+      assert.equal(privatePage.playlists[0].id, playlist.id)
+      const filtered = await service.playlists(admin, {
+        q: 'Autre',
+        page: 1,
+        visibility: 'all',
+        user_id: owner.id,
+      })
+      assert.equal(filtered.pagination.total, 0)
+      await User.createMany(
+        Array.from({ length: 25 }, (_, index) => ({
+          email: `bulk-${index}@example.com`,
+          password: 'test-password',
+        }))
+      )
+      const first = await service.users(admin, { q: '', page: 1, status: 'all' })
+      const second = await service.users(admin, { q: '', page: 2, status: 'all' })
+      assert.lengthOf(first.users, 25)
+      assert.lengthOf(second.users, 3)
+      const search = await service.users(admin, {
+        q: 'owner@example.com',
+        page: 1,
+        status: 'active',
+      })
+      assert.equal(search.pagination.total, 1)
+      assert.equal(search.users[0].id, owner.id)
+    })
+    test('editing another account’s playlist preserves retained item IDs, ownership and votes', async ({
+      assert,
+    }) => {
+      const input = await editing()
+      const itemIds = input.items.map((item) => item.id)
+      await service.updatePlaylist(admin, playlist.id, {
+        ...input,
+        title: 'Titre administré',
+        visibility: 'public',
+        items: [...input.items].reverse(),
+      })
+      const updated = await Playlist.findOrFail(playlist.id)
+      const items = await PlaylistItem.query().where('playlist_id', playlist.id).orderBy('position')
+      assert.equal(updated.userId, owner.id)
+      assert.isTrue(updated.isPublic)
+      assert.deepEqual(
+        items.map((item) => item.id),
+        [...itemIds].reverse()
+      )
+      assert.lengthOf(await Vote.all(), 3)
+      const action = await db.from('admin_audit').first()
+      assert.equal(action.actor_id, admin.id)
+    })
+    test('rejects stale revisions, foreign items and duplicate item IDs atomically', async ({
+      assert,
+    }) => {
+      const input = await editing()
+      await assert.rejects(
+        () =>
+          service.updatePlaylist(admin, playlist.id, {
+            ...input,
+            items: [{ ...input.items[0], id: foreignItem.id }, input.items[1]],
+          }),
+        /autre playlist/
+      )
+      await assert.rejects(
+        () =>
+          service.updatePlaylist(admin, playlist.id, {
+            ...input,
+            items: [input.items[0], input.items[0]],
+          }),
+        /dupliqué/
+      )
+      await service.updatePlaylist(admin, playlist.id, { ...input, title: 'Version récente' })
+      await assert.rejects(
+        () => service.updatePlaylist(admin, playlist.id, { ...input, title: 'Version obsolète' }),
+        /modifiée/
+      )
+      const current = await Playlist.findOrFail(playlist.id)
+      assert.equal(current.title, 'Version récente')
+      assert.lengthOf(await Vote.all(), 3)
+    })
+    test('explicit item removal deletes only its votes and preserves newly added items', async ({
+      assert,
+    }) => {
+      const input = await editing()
+      await service.updatePlaylist(admin, playlist.id, {
+        ...input,
+        items: [
+          input.items[1],
+          { title: 'Image ajoutée', description: '', image_url: 'https://example.com/new.png' },
+        ],
+      })
+      const items = await PlaylistItem.query().where('playlist_id', playlist.id).orderBy('position')
+      assert.lengthOf(items, 2)
+      assert.equal(items[0].id, input.items[1].id)
+      assert.equal(items[1].title, 'Image ajoutée')
+      assert.lengthOf(await Vote.all(), 2)
+    })
+    test('suspension is reversible, revokes OAuth access and protects administrator accounts', async ({
+      assert,
+    }) => {
+      const connectionId = randomUUID()
+      await db.table('editorial_connections').insert({
+        id: connectionId,
+        subject: String(owner.id),
+        client_id: 'test-client',
+        user_id: owner.id,
+        scopes: JSON.stringify(['editorial:read']),
+        expires_at: new Date(Date.now() + 60000),
+      })
+      await service.suspend(admin, owner.id, {
+        suspended: true,
+        expected_suspended: false,
+        reason: 'Motif de recette',
+      })
+      const suspended = await User.findOrFail(owner.id)
+      assert.isNotNull(suspended.suspendedAt)
+      const connection = await db.from('editorial_connections').where('id', connectionId).first()
+      assert.isTrue(connection.revoked)
+      await assert.rejects(
+        () =>
+          service.suspend(admin, owner.id, {
+            suspended: true,
+            expected_suspended: false,
+            reason: 'Ancienne version',
+          }),
+        /statut/
+      )
+      await service.suspend(admin, owner.id, {
+        suspended: false,
+        expected_suspended: true,
+        reason: 'Accès rétabli',
+      })
+      const reactivated = await User.findOrFail(owner.id)
+      assert.isNull(reactivated.suspendedAt)
+      await assert.rejects(
+        () =>
+          service.suspend(admin, admin.id, {
+            suspended: true,
+            expected_suspended: false,
+            reason: 'Interdit',
+          }),
+        /administrateurs/
+      )
+      assert.lengthOf(await Playlist.all(), 3)
+      assert.lengthOf(await Vote.all(), 3)
+    })
+    test('ordinary users cannot use global administration services', async ({ assert }) => {
+      await assert.rejects(() => service.overview(owner), /administrateur/)
+      await assert.rejects(() => service.user(owner, other.id), /administrateur/)
+      await assert.rejects(() => service.playlist(owner, playlist.id), /administrateur/)
+      const input = await editing()
+      await assert.rejects(
+        () => service.updatePlaylist(owner, playlist.id, input),
+        /administrateur/
+      )
+    })
+    test('playlist deletion requires the exact confirmation and is recorded separately from its removed data', async ({
+      assert,
+    }) => {
+      const input = await editing()
+      await assert.rejects(
+        () =>
+          service.deletePlaylist(admin, playlist.id, {
+            expected_revision: input.expected_revision,
+            confirm_slug: 'wrong',
+          }),
+        /exactement/
+      )
+      await service.deletePlaylist(admin, playlist.id, {
+        expected_revision: input.expected_revision,
+        confirm_slug: playlist.slug,
+      })
+      assert.isNull(await Playlist.find(playlist.id))
+      assert.lengthOf(await Playlist.all(), 2)
+      assert.lengthOf(await Vote.all(), 2)
+      const action = await db.from('admin_audit').where('action', 'delete_playlist').first()
+      assert.equal(action.target_id, playlist.id)
+    })
+  })
+}

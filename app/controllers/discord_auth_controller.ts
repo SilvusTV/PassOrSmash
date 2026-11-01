@@ -75,6 +75,8 @@ export default class DiscordAuthController {
         { discordId: profile.id },
         { ...values, password: await hash.make(string.random(48)) }
       )
+      if (user.suspendedAt)
+        return response.forbidden('Ce compte est suspendu. Contactez l’administrateur du site.')
       user.merge(values)
       await user.save()
       await auth.use('web').login(user)
