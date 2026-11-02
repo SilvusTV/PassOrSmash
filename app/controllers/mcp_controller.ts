@@ -7,7 +7,6 @@ import { createEditorialServer } from '../mcp/server.js'
 import { EditorialError, scopes } from '#services/editorial/contracts'
 import { authorizeMcpClaims } from '#services/editorial/mcp_access'
 import { oauthIssuer, verifyLocalAccessToken } from '#services/oauth/provider'
-
 const jwks = new Map<string, ReturnType<typeof createRemoteJWKSet>>()
 export default class McpController {
   async metadata({ response }: HttpContext) {
@@ -45,7 +44,7 @@ export default class McpController {
       response
         .header(
           'WWW-Authenticate',
-          `Bearer resource_metadata="${base.origin}/.well-known/oauth-protected-resource/mcp", scope="editorial:read"`
+          `Bearer resource_metadata="${base.origin}/.well-known/oauth-protected-resource/mcp", scope="${scopes.join(' ')}"`
         )
         .unauthorized({ error: 'invalid_token' })
     if (!token) return unauthorized()

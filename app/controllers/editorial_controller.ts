@@ -17,7 +17,6 @@ import {
   revision,
   scopes,
 } from '#services/editorial/contracts'
-
 export default class EditorialController {
   private proposals = new Proposals()
   async index({ auth, inertia }: HttpContext) {
@@ -61,6 +60,14 @@ export default class EditorialController {
     return inertia.render('editorial/show', {
       proposal,
       validation,
+      jobs: await db
+        .from('editorial_jobs')
+        .where('user_id', auth.user!.id)
+        .where('kind', 'image')
+        .whereRaw("input->>'proposal_id' = ?", [proposal.id])
+        .orderBy('created_at', 'desc')
+        .limit(30)
+        .select('id', 'status', 'stage', 'attempts', 'error', 'input', 'created_at'),
       media: mediaIds.length
         ? await db
             .from('editorial_media')
@@ -72,7 +79,11 @@ export default class EditorialController {
   }
   private async perform(ctx: HttpContext, run: () => Promise<unknown>) {
     try {
-      await run()
+      const destination = await run()
+      if (typeof destination === 'string') {
+        ctx.session.flash('success', 'Action éditoriale enregistrée.')
+        return ctx.response.redirect().toPath(destination)
+      }
       ctx.session.flash('success', 'Action éditoriale enregistrée.')
     } catch (error) {
       if (
@@ -169,10 +180,24 @@ export default class EditorialController {
   }
   async retry(ctx: HttpContext) {
     return this.perform(ctx, async () => {
-      await db
+      const updated = await db
         .from('editorial_jobs')
         .where({ id: id.parse(ctx.params.id), user_id: ctx.auth.user!.id, status: 'failed' })
-        .update({ status: 'queued', attempts: 0, available_at: new Date(), updated_at: new Date() })
+        .update({
+          status: 'queued',
+          stage: 'queued',
+          error: null,
+          attempts: 0,
+          lease_token: null,
+          lease_until: null,
+          available_at: new Date(),
+          updated_at: new Date(),
+        })
+      if (!updated)
+        throw new EditorialError(
+          'NOT_FOUND',
+          'Cette tâche est introuvable ou ne peut pas être relancée.'
+        )
     })
   }
   async generate(ctx: HttpContext) {
@@ -194,13 +219,15 @@ export default class EditorialController {
     })
   }
   async create(ctx: HttpContext) {
-    return this.perform(ctx, () =>
-      this.proposals.create(
+    return this.perform(ctx, async () => {
+      const result = await this.proposals.create(
         dashboardActor(ctx.auth.user!),
         contentSchema.parse(JSON.parse(ctx.request.input('content'))),
         key.parse(ctx.request.input('idempotency_key'))
       )
-    )
+      // Open the created draft immediately instead of leaving it hidden in the list.
+      return `/admin/editorial/proposals/${result.proposal_id}`
+    })
   }
   async action(ctx: HttpContext) {
     return this.perform(ctx, async () => {

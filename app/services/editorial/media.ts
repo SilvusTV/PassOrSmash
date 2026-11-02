@@ -5,11 +5,10 @@ import db from '@adonisjs/lucid/services/db'
 import sharp from 'sharp'
 import { type Actor, EditorialError, provenanceSchema } from './contracts.js'
 import { safeDownload } from './network.js'
-
 export default class EditorialMedia {
   async import(actor: Actor, input: unknown) {
     const provenance = provenanceSchema.parse(input)
-    const bytes = await safeDownload(provenance.url)
+    const bytes = await safeDownload(provenance.url, { redirects: 3 })
     const image = sharp(bytes, { limitInputPixels: 25_000_000, animated: false })
     const metadata = await image.metadata()
     if (

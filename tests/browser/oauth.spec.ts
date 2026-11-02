@@ -11,12 +11,10 @@ import { oauthIssuer, oauthResource, verifyLocalAccessToken } from '#services/oa
 import { authorizeMcpClaims } from '#services/editorial/mcp_access'
 import encryption from '@adonisjs/core/services/encryption'
 import { importJWK, SignJWT, type JSONWebKeySet } from 'jose'
-
 const base = 'http://localhost:3333'
 let callback: string
 const verifier = 'a'.repeat(64)
 const challenge = createHash('sha256').update(verifier).digest('base64url')
-
 if (process.env.EDITORIAL_DB_TESTS === '1') {
   test.group('Discord MCP OAuth', (group) => {
     let user: User
@@ -165,7 +163,7 @@ if (process.env.EDITORIAL_DB_TESTS === '1') {
       assert.equal(denied.status(), 401)
       assert.include(denied.headers()['www-authenticate'], 'resource_metadata')
     })
-    test('consents, exchanges PKCE code, lists 20 tools, rotates refresh and revokes access', async ({
+    test('consents, exchanges PKCE code, lists 21 tools, rotates refresh and revokes access', async ({
       browserContext,
       assert,
     }) => {
@@ -187,7 +185,7 @@ if (process.env.EDITORIAL_DB_TESTS === '1') {
       const tools = JSON.parse(
         raw.startsWith('event:') ? raw.split('data: ')[1].split('\n')[0] : raw
       ).result.tools
-      assert.lengthOf(tools, 20)
+      assert.lengthOf(tools, 21)
       assert.isFalse(tools.some((tool: { name: string }) => /publish|approve/.test(tool.name)))
       const second = await browserContext.request.post(`${base}/oauth/token`, {
         form: {
@@ -203,6 +201,7 @@ if (process.env.EDITORIAL_DB_TESTS === '1') {
       const active = await mcp(browserContext, refreshed.access_token)
       assert.equal(active.status(), 200)
       await page.goto(`${base}/admin/editorial`)
+      await page.getByRole('button', { name: 'Connexions MCP' }).click()
       await page.getByRole('button', { name: 'Révoquer', exact: true }).click()
       await page.getByText('Révoquée', { exact: true }).waitFor()
       const revoked = await mcp(browserContext, refreshed.access_token)

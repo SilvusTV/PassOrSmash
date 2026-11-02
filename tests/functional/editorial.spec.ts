@@ -309,6 +309,192 @@ if (process.env.EDITORIAL_DB_TESTS === '1') {
       assert.lengthOf(await db.from('editorial_proposals'), 1)
       assert.lengthOf(await Playlist.all(), 0)
     })
+    test('parallel image imports survive unrelated edits without losing text or media', async ({
+      assert,
+    }) => {
+      const input = content()
+      input.items.forEach((item) => {
+        delete item.media_id
+      })
+      const created = await service.create(actor, input, randomUUID())
+      const proposal = await service.get(actor, created.proposal_id)
+      const worker = new EditorialJobs({
+        news: { find: async () => [] },
+        generation: {
+          generate: async () => {
+            throw new Error('unexpected generation')
+          },
+        },
+        media: { import: async () => ({ media_id: mediaId, width: 120, height: 120, provenance }) },
+      })
+      const jobs = await Promise.all(
+        proposal.content.items.map((item: { id: string }) =>
+          worker.enqueue(
+            actor,
+            'image',
+            {
+              proposal_id: proposal.id,
+              expected_revision: 1,
+              item_id: item.id,
+              provenance,
+            },
+            randomUUID()
+          )
+        )
+      )
+      await service.mutate(actor, proposal.id, 1, 'update', (value) => ({
+        ...value,
+        title: 'Texte modifié pendant les imports',
+      }))
+      await Promise.all([worker.workOne(), worker.workOne()])
+      const saved = await service.get(actor, proposal.id)
+      assert.equal(saved.revision, 4)
+      assert.equal(saved.content.title, 'Texte modifié pendant les imports')
+      assert.isTrue(
+        saved.content.items.every((item: { media_id: string }) => item.media_id === mediaId)
+      )
+      for (const job of jobs) {
+        const row = await db.from('editorial_jobs').where('id', job.job_id).first()
+        assert.equal(row.status, 'succeeded', JSON.stringify(row.error))
+      }
+      // Worker redelivery must not increment the revision twice.
+      await db
+        .from('editorial_jobs')
+        .where('id', jobs[0].job_id)
+        .update({ status: 'running', lease_until: new Date(0) })
+      await worker.workOne()
+      const replayed = await service.get(actor, proposal.id)
+      assert.equal(replayed.revision, 4)
+    })
+    test('two replacements of one image never silently overwrite each other', async ({
+      assert,
+    }) => {
+      const input = content()
+      input.items.forEach((item) => {
+        delete item.media_id
+      })
+      const created = await service.create(actor, input, randomUUID())
+      const proposal = await service.get(actor, created.proposal_id)
+      const worker = new EditorialJobs({
+        news: { find: async () => [] },
+        generation: {
+          generate: async () => {
+            throw new Error('unexpected generation')
+          },
+        },
+        media: { import: async () => ({ media_id: mediaId, width: 120, height: 120, provenance }) },
+      })
+      const jobs = []
+      for (let i = 0; i < 2; i++)
+        jobs.push(
+          await worker.enqueue(
+            actor,
+            'image',
+            {
+              proposal_id: proposal.id,
+              expected_revision: 1,
+              item_id: proposal.content.items[0].id,
+              provenance,
+            },
+            randomUUID()
+          )
+        )
+      await worker.workOne()
+      await worker.workOne()
+      const states = await db.from('editorial_jobs').whereIn(
+        'id',
+        jobs.map((job) => job.job_id)
+      )
+      assert.deepEqual(states.map((job) => job.status).sort(), ['failed', 'succeeded'])
+      assert.equal(states.find((job) => job.status === 'failed').error.code, 'REVISION_CONFLICT')
+    })
+    test('MCP creates privately, edits and deduplicates playlists through the real SDK', async ({
+      assert,
+    }) => {
+      const handler = createMcpHandler(() =>
+        createEditorialServer({ ...actor, identity: 'mcp:integration' })
+      )
+      const call = async (name: string, args: unknown) => {
+        const response = await handler.fetch(
+          new Request('http://localhost/mcp', {
+            method: 'POST',
+            headers: {
+              'content-type': 'application/json',
+              'accept': 'application/json, text/event-stream',
+              'mcp-protocol-version': '2025-11-25',
+            },
+            body: JSON.stringify({
+              jsonrpc: '2.0',
+              id: 1,
+              method: 'tools/call',
+              params: { name, arguments: args },
+            }),
+          })
+        )
+        const raw = await response.text()
+        return JSON.parse(raw.startsWith('event:') ? raw.split('data: ')[1].split('\n')[0] : raw)
+          .result
+      }
+      try {
+        const input = {
+          title: 'Création MCP',
+          idempotency_key: randomUUID(),
+          items: [1, 2].map((n) => ({
+            title: `Image ${n}`,
+            description: '',
+            image_url: 'https://example.com/image.png',
+          })),
+        }
+        const created = await call('create_playlist', input)
+        assert.isUndefined(created.isError, JSON.stringify(created))
+        const data = created.structuredContent.data
+        assert.isFalse(data.playlist.isPublic)
+        assert.lengthOf(data.items, 2)
+        const again = await call('create_playlist', input)
+        assert.equal(again.structuredContent.data.playlist.id, data.playlist.id)
+        assert.lengthOf(await Playlist.all(), 1)
+        const changedKey = await call('create_playlist', { ...input, title: 'Autre titre' })
+        assert.isTrue(changedKey.isError)
+        const snapshot = await call('get_playlist', { playlist_id: data.playlist.id })
+        assert.equal(snapshot.structuredContent.data.edit.revision, data.revision)
+        const items = data.items
+          .map(({ id, title, description, image_url }: any) => ({
+            id,
+            title,
+            description,
+            image_url,
+          }))
+          .reverse()
+        const edit = {
+          playlist_id: data.playlist.id,
+          expected_revision: data.revision,
+          title: 'Édition MCP',
+          description: '',
+          accent: 'coral',
+          visibility: 'public',
+          items,
+        }
+        const saved = await call('update_playlist', edit)
+        assert.isUndefined(saved.isError, JSON.stringify(saved))
+        assert.isTrue(saved.structuredContent.data.playlist.isPublic)
+        assert.deepEqual(
+          saved.structuredContent.data.items.map((item: { id: number }) => item.id),
+          items.map((item: { id: number }) => item.id)
+        )
+        const stale = await call('update_playlist', edit)
+        assert.isTrue(stale.isError)
+        assert.include(stale.content[0].text, 'REVISION_CONFLICT')
+        const invalid = await call('create_playlist', {
+          ...input,
+          idempotency_key: randomUUID(),
+          items: input.items.map((item) => ({ ...item, image_url: `/editorial/media/${mediaId}` })),
+        })
+        assert.isTrue(invalid.isError)
+        assert.lengthOf(await Playlist.all(), 1)
+      } finally {
+        await handler.close()
+      }
+    })
     test('budget ceiling stops a provider before any paid call', async ({ assert }) => {
       const settings = settingsSchema.parse({
         daily_budget_cents: 1,

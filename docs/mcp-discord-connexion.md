@@ -87,7 +87,17 @@ Les enregistrements expirés ne sont plus acceptés. Une purge de maintenance pe
 - Une connexion administrateur doit afficher le consentement, retourner au client et exposer les outils selon ses droits.
 - Un refus, un compte sans droits, une preuve PKCE invalide, un code rejoué, un jeton expiré ou une audience différente doivent échouer.
 - Après révocation dans le studio, le même jeton doit être refusé.
-- Aucun outil MCP ne doit permettre de publier : cette action reste humaine dans le studio.
+- Les propositions passent par l’examen humain du studio. Les outils `create_playlist` et `update_playlist` agissent directement sur les playlists du compte ; leur champ `visibility: public` les rend immédiatement publiques.
+
+## Création et édition des playlists
+
+Reconnecter les anciennes connexions limitées à `editorial:read` en demandant `editorial:read editorial:write` (et `editorial:generate` pour la préparation d’actualité). Le challenge OAuth annonce maintenant toutes les portées disponibles. Les anciennes autorisations ne sont jamais augmentées silencieusement. Actualiser ensuite la découverte des outils côté client.
+
+- `create_playlist` : titre, 2 à 100 éléments (`title`, `description`, `image_url`) et `idempotency_key` unique. Privée par défaut. `description`, `accent` et `visibility` sont facultatifs. Une même clé avec le même contenu renvoie la même playlist ; avec un contenu différent elle échoue.
+- `get_playlist` : lire `edit.revision` et les identifiants des éléments avant modification.
+- `update_playlist` : fournir `expected_revision`, le contenu complet et les IDs conservés dans l’ordre final. Les éléments conservés gardent leurs votes. Une modification concurrente est refusée. Les playlists d’un autre compte restent en lecture seule, même pour un administrateur connecté au MCP.
+
+Le serveur expose 9 outils en lecture seule et 21 outils avec les trois portées. Aucun outil ne permet d’approuver ou publier une proposition éditoriale.
 
 Les tests automatisés utilisent Chromium, PostgreSQL et un client OAuth avec récepteur HTTP local. Discord est simulé pour tester le retour de connexion sans utiliser de vrais identifiants ni appeler son API. Le dernier essai avec votre compte Discord et le client final doit être effectué après déploiement.
 

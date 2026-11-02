@@ -12,7 +12,6 @@ import { publicAddress, safeDownload } from '#services/editorial/network'
 import { scheduleSlots } from '#services/editorial/settings'
 import { createEditorialServer } from '../../app/mcp/server.js'
 import { createMcpHandler } from '@modelcontextprotocol/server'
-
 test.group('Editorial contracts', () => {
   test('rejects publication fields and unknown arguments in editorial content', ({ assert }) => {
     assert.isFalse(
@@ -103,9 +102,10 @@ test.group('Editorial contracts', () => {
         )
         const names = payload.result.tools.map((tool: { name: string }) => tool.name)
         assert.isFalse(names.some((name: string) => /publish|approve|sql|exec/.test(name)))
-        assert.equal(names.length, scopes.length === 1 ? 9 : 20)
+        assert.equal(names.length, scopes.length === 1 ? 9 : 21)
         assert.equal(names.includes('create_proposal'), scopes.includes('editorial:write'))
         assert.equal(names.includes('update_playlist'), scopes.includes('editorial:write'))
+        assert.equal(names.includes('create_playlist'), scopes.includes('editorial:write'))
       } finally {
         await handler.close()
       }

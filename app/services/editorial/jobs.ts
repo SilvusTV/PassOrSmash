@@ -18,7 +18,6 @@ import EditorialMedia from './media.js'
 import { safeDownload } from './network.js'
 import { isEditorialAdmin } from './access.js'
 import User from '#models/user'
-
 export default class EditorialJobs {
   constructor(
     private providers = {
@@ -35,19 +34,23 @@ export default class EditorialJobs {
   ) {
     requireScope(actor, kind === 'generation' ? 'editorial:generate' : 'editorial:write')
     return idempotent(actor, `enqueue_${kind}`, key, input, async (trx) => {
+      let jobInput = input
       if (kind === 'image') {
         const proposal = await new Proposals().get(actor, String(input.proposal_id), trx, true)
         assertRevision(proposal.revision, Number(input.expected_revision))
         assertDraft(proposal.status)
-        if (!proposal.content.items.some((item: { id: string }) => item.id === input.item_id))
-          throw new EditorialError('NOT_FOUND', 'Élément introuvable.')
+        const item = proposal.content.items.find(
+          (entry: { id: string }) => entry.id === input.item_id
+        )
+        if (!item) throw new EditorialError('NOT_FOUND', 'Élément introuvable.')
+        jobInput = { ...input, expected_media_id: item.media_id || null }
       }
       const jobId = randomUUID()
       await trx.table('editorial_jobs').insert({
         id: jobId,
         user_id: actor.userId,
         kind,
-        input: JSON.stringify(input),
+        input: JSON.stringify(jobInput),
         available_at: new Date(),
         created_at: new Date(),
         updated_at: new Date(),
@@ -56,7 +59,6 @@ export default class EditorialJobs {
       return { job_id: jobId, status: 'queued' }
     })
   }
-
   async schedule(now: DateTime = DateTime.utc()) {
     const settings = await getSettings()
     if (!settings.enabled || !settings.automation_user_id) return
@@ -87,7 +89,6 @@ export default class EditorialJobs {
       .onConflict('slot_key')
       .ignore()
   }
-
   async workOne() {
     const job = await db.transaction(async (trx) => {
       const candidate = await trx
@@ -165,27 +166,39 @@ export default class EditorialJobs {
           return true
         }
         const proposal = await proposals.get(actor, job.input.proposal_id)
-        assertRevision(proposal.revision, job.input.expected_revision)
+        if (!('expected_media_id' in job.input))
+          assertRevision(proposal.revision, job.input.expected_revision)
         assertDraft(proposal.status)
         const media =
           job.result?.media || (await this.providers.media.import(actor, job.input.provenance))
         await this.checkpoint(job, 'image_verified', { media })
         checkDeadline()
-        result = await idempotent(actor, 'apply_image', job.id, job.input, (trx) =>
-          proposals.mutate(
+        result = await idempotent(actor, 'apply_image', job.id, job.input, async (trx) => {
+          const current = await proposals.get(actor, job.input.proposal_id, trx, true)
+          return proposals.mutate(
             actor,
             job.input.proposal_id,
-            job.input.expected_revision,
+            current.revision,
             'import_image',
             (content) => {
               const item = content.items.find((entry) => entry.id === job.input.item_id)
               if (!item) throw new EditorialError('NOT_FOUND', 'Élément introuvable.')
+              if (
+                'expected_media_id' in job.input &&
+                (item.media_id || null) !== job.input.expected_media_id
+              )
+                throw new EditorialError(
+                  'REVISION_CONFLICT',
+                  'L’image de cet élément a changé. Relancez un nouvel import.'
+                )
+              if (!('expected_media_id' in job.input))
+                assertRevision(current.revision, job.input.expected_revision)
               item.media_id = media.media_id
               return content
             },
             trx
           )
-        )
+        })
       } else {
         const existing = await db
           .from('editorial_proposals')
@@ -314,7 +327,6 @@ export default class EditorialJobs {
     }
     return true
   }
-
   private async checkpoint(
     job: { id: string; lease_token: string },
     stage: string,
@@ -326,7 +338,6 @@ export default class EditorialJobs {
       .update({ stage, result: JSON.stringify(result), updated_at: new Date() })
     if (!updated) throw new EditorialError('INVALID_STATE', 'Verrou de tâche expiré.')
   }
-
   private async finish(job: { id: string; lease_token: string }, status: string, result: unknown) {
     await db
       .from('editorial_jobs')

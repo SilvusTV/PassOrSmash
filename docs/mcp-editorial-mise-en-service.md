@@ -4,7 +4,7 @@
 
 ## État du développement
 
-Le serveur distant `/mcp`, les 19 outils du cahier des charges, les services partagés, le studio `/admin/editorial`, les propositions privées, les révisions et la publication humaine atomique sont implémentés. Les tâches sont conservées dans PostgreSQL et exécutées par `node ace editorial:tick`. Aucun outil MCP ne publie, ne refuse, ne rouvre, ni ne modifie les réglages.
+Le serveur distant `/mcp`, les 21 outils éditoriaux et de playlists, les services partagés, le studio `/admin/editorial`, les propositions privées, les révisions et la publication humaine atomique sont implémentés. Les tâches sont conservées dans PostgreSQL et exécutées par `node ace editorial:tick`. La publication des propositions, leur refus/réouverture et les réglages restent dans le studio. Les outils de création et d’édition de playlists peuvent rendre une playlist publique via leur champ visibility.
 
 L’automatisation est désactivée par défaut. Aucun fournisseur de génération, destinataire ou administrateur de production n’a été configuré. L’autorisation MCP intégrée réutilise Discord et crée ses clés de signature persistantes. Les migrations doivent être appliquées dans l’environnement cible au déploiement. Le branchement avec le client final et un essai réel des fournisseurs restent requis avant activation.
 
@@ -175,7 +175,7 @@ Les mardi et vendredi à 10 h sont des **valeurs proposées**, à confirmer dans
 
 La pause empêche la création de nouvelles tâches planifiées. Les tâches déjà enregistrées continuent, les demandes manuelles restent possibles et la revue reste ouverte. Le compte de préparation doit être un administrateur explicitement autorisé.
 
-Chaque tentative est bornée à environ deux minutes avec contrôle entre étapes et délais par téléchargement. Le fournisseur de génération dispose de 45 secondes par appel ; les autres téléchargements de 15 secondes plus au plus cinq secondes de DNS. Trois tentatives au maximum, avec délai croissant. Les résultats de génération et les médias vérifiés sont enregistrés entre étapes. Après une panne, un appel fournisseur commencé mais dont la réponse n’a pas été enregistrée peut être répété ; son idempotence doit être assurée par le fournisseur.
+Chaque tentative est bornée à environ deux minutes avec contrôle entre étapes et délais par téléchargement. Le fournisseur de génération dispose de 45 secondes par appel ; les autres téléchargements de 15 secondes plus au plus huit secondes de DNS par requête ; les images acceptent jusqu’à trois redirections HTTPS, toutes revérifiées. Trois tentatives au maximum, avec délai croissant. Les résultats de génération et les médias vérifiés sont enregistrés entre étapes. Après une panne, un appel fournisseur commencé mais dont la réponse n’a pas été enregistrée peut être répété ; son idempotence doit être assurée par le fournisseur.
 
 Le plafond journalier est calculé en UTC. Chaque appel réserve **avant envoi** le coût maximal configuré ; les échecs ne remboursent pas cette réservation. Le plafond et le nombre d’appels sont contrôlés sous verrou PostgreSQL. Le contrôle ne mesure pas une facture distante : configurer le coût réel maximal contractuel et les limites correspondantes chez le fournisseur. Une notification n’a aucune capacité de publication.
 

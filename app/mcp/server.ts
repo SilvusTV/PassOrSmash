@@ -25,7 +25,6 @@ import {
   requireScope,
   revision,
 } from '#services/editorial/contracts'
-
 export function createEditorialServer(actor: Actor) {
   const server = new McpServer({ name: 'passorsmash-editorial', version: '1.0.0' })
   const proposals = new Proposals()
@@ -202,6 +201,73 @@ export function createEditorialServer(actor: Actor) {
         })),
       }
     },
+    true
+  )
+  tool(
+    'create_playlist',
+    'Crée une playlist appartenant au compte connecté. Privée par défaut ; public la publie immédiatement. Fournir 2 à 100 éléments avec leurs URL d’image. Une même idempotency_key ne crée jamais de doublon.',
+    'editorial:write',
+    {
+      title: playlistEditSchema.shape.title,
+      description: z.string().trim().max(600).default(''),
+      visibility: z.enum(['public', 'private']).default('private'),
+      accent: z.enum(['lime', 'violet', 'coral', 'sky']).default('lime'),
+      items: z
+        .array(
+          playlistEditSchema.shape.items.element
+            .omit({ id: true })
+            .extend({ description: z.string().trim().max(500).default('') })
+        )
+        .min(2)
+        .max(100),
+      idempotency_key: key,
+    },
+    async ({ idempotency_key, ...input }) => {
+      const result = await idempotent(
+        actor,
+        'create_playlist',
+        idempotency_key,
+        input,
+        async (trx) => {
+          // Private editorial media must go through the proposal review workflow.
+          if (input.items.some((item) => item.image_url.startsWith('/')))
+            throw new EditorialError(
+              'VALIDATION_FAILED',
+              'Utilisez une URL d’image publique ou le parcours des propositions éditoriales.'
+            )
+          const [playlist] = await trx
+            .table('playlists')
+            .insert({
+              user_id: actor.userId,
+              slug: `selection-${randomUUID()}`,
+              title: input.title,
+              description: input.description || null,
+              is_public: input.visibility === 'public',
+              accent: input.accent,
+              created_at: new Date(),
+              updated_at: new Date(),
+            })
+            .returning('id')
+          await trx.table('playlist_items').multiInsert(
+            input.items.map((item, position) => ({
+              playlist_id: playlist.id,
+              title: item.title,
+              description: item.description || null,
+              image_url: item.image_url,
+              position,
+              created_at: new Date(),
+              updated_at: new Date(),
+            }))
+          )
+          await audit(trx, actor, 'create_playlist', undefined, undefined, {
+            playlist_id: playlist.id,
+          })
+          return { playlist_id: playlist.id }
+        }
+      )
+      return new AdminManagement().playlist(await User.findOrFail(actor.userId), result.playlist_id)
+    },
+    false,
     true
   )
   tool(
