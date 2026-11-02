@@ -53,7 +53,7 @@ export default function Home({ featured = [] }: { featured: Card[] }) {
   return (
     <>
       <Seo
-        title="Pass or Smash"
+        title="Jeu Smash or Pass gratuit : crée et partage ton quiz"
         description="Crée gratuitement un jeu Smash or Pass avec tes images, partage-le et découvre les choix de tes amis ou de ta communauté."
         path="/"
         structuredData={{
@@ -73,9 +73,9 @@ export default function Home({ featured = [] }: { featured: Card[] }) {
             <i /> Le jeu qui met tout le monde d’accord. Ou pas.
           </span>
           <h1>
-            À toi de
+            Crée ton jeu
             <br />
-            <em>trancher.</em>
+            <em>Smash or Pass.</em>
           </h1>
           <p>
             Crée une playlist d’images, partage-la avec ta communauté et laisse chacun choisir :{' '}
@@ -239,6 +239,32 @@ export default function Home({ featured = [] }: { featured: Card[] }) {
           <Link href="/jeu-smash-or-pass" className="outline-button">
             Découvrir le jeu <span>→</span>
           </Link>
+        </div>
+      </section>
+      <section className="how-section">
+        <div className="section-heading">
+          <span className="eyebrow">Les guides pour te lancer</span>
+          <h2>Ton prochain jeu commence ici.</h2>
+        </div>
+        <div className="steps">
+          <article>
+            <h3>
+              <Link href="/creer-smash-or-pass">Créer un Smash or Pass personnalisé</Link>
+            </h3>
+            <p>Choisis tes images, prépare ta playlist et partage ton jeu.</p>
+          </article>
+          <article>
+            <h3>
+              <Link href="/smash-or-pass-discord">Jouer à Smash or Pass sur Discord</Link>
+            </h3>
+            <p>Organise une partie avec ton groupe, depuis un simple lien.</p>
+          </article>
+          <article>
+            <h3>
+              <Link href="/idees-smash-or-pass">Trouver un thème de Smash or Pass</Link>
+            </h3>
+            <p>Cuisine, voyages ou voitures : trouve une idée et lance une partie.</p>
+          </article>
         </div>
       </section>
       <section className="home-faq" aria-labelledby="faq-title">

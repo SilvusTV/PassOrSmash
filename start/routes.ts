@@ -67,6 +67,13 @@ router
 
 router.get('/', [controllers.Home, 'index']).as('home')
 router.get('/jeu-smash-or-pass', [controllers.Home, 'about']).as('about')
+for (const guide of [
+  'creer-smash-or-pass',
+  'smash-or-pass-discord',
+  'idees-smash-or-pass',
+] as const) {
+  router.get(`/${guide}`, ({ inertia }) => inertia.render('guide', { guide }))
+}
 router.get('/explore', [controllers.Home, 'explore']).as('explore')
 router.get('/robots.txt', [controllers.Home, 'robots'])
 router.get('/sitemap.xml', [controllers.Home, 'sitemap'])

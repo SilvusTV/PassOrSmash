@@ -21,6 +21,15 @@ type Item = {
   imageCredit?: { url: string; credit: string; license: string; license_url: string }
 }
 
+const themeAdvice: Record<string, string> = {
+  'Glaces':
+    'Quelle glace choisirais-tu pour le dessert ? Compare les saveurs selon tes envies, puis découvre celles qui divisent les joueurs. Les votes expriment des préférences personnelles, pas un jugement sur la qualité des produits.',
+  'Voitures-iconiques':
+    'Laquelle aimerais-tu conduire ? Juge les silhouettes et les styles selon tes goûts. Ce jeu compare les envies des participants ; il ne constitue pas un essai automobile ni un conseil d’achat.',
+  'Destinations-de-reve':
+    'Où aimerais-tu partir ? Choisis les paysages qui te donnent envie de voyager, puis compare tes réponses avec la communauté. Les résultats reflètent les envies des joueurs et ne constituent pas une évaluation des destinations.',
+}
+
 function PlaylistEditorial({ playlist, items }: { playlist: Playlist; items: Item[] }) {
   return (
     <section className="playlist-editorial" aria-labelledby="playlist-about-title">
@@ -33,6 +42,20 @@ function PlaylistEditorial({ playlist, items }: { playlist: Playlist; items: Ite
         </p>
       </div>
       <div className="playlist-entry-list">
+        {themeAdvice[playlist.slug] && (
+          <>
+            <h3>Une idée pour jouer entre amis</h3>
+            <p>{themeAdvice[playlist.slug]}</p>
+            <p>
+              Partage le lien dans ton groupe et commentez chaque choix. Aucun compte n’est
+              nécessaire pour voter.
+            </p>
+            <Link href="/smash-or-pass-discord">Organiser une partie sur Discord</Link>
+            <p>
+              <Link href="/idees-smash-or-pass">Trouver d’autres idées de thèmes</Link>
+            </p>
+          </>
+        )}
         <h3>Au programme</h3>
         <ol>
           {items.map((entry) => (

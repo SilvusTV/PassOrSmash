@@ -6,6 +6,18 @@ import type { ApiDefinition } from './tree.d.ts'
 const placeholder: any = {}
 
 const routes = {
+  'google_auth.redirect': {
+    methods: ["GET","HEAD"],
+    pattern: '/auth/google',
+    tokens: [{"old":"/auth/google","type":0,"val":"auth","end":""},{"old":"/auth/google","type":0,"val":"google","end":""}],
+    types: placeholder as Registry['google_auth.redirect']['types'],
+  },
+  'google_auth.callback': {
+    methods: ["GET","HEAD"],
+    pattern: '/auth/google/callback',
+    tokens: [{"old":"/auth/google/callback","type":0,"val":"auth","end":""},{"old":"/auth/google/callback","type":0,"val":"google","end":""},{"old":"/auth/google/callback","type":0,"val":"callback","end":""}],
+    types: placeholder as Registry['google_auth.callback']['types'],
+  },
   'admin.index': {
     methods: ["GET","HEAD"],
     pattern: '/admin',
@@ -245,6 +257,12 @@ const routes = {
     pattern: '/dashboard',
     tokens: [{"old":"/dashboard","type":0,"val":"dashboard","end":""}],
     types: placeholder as Registry['playlists.index']['types'],
+  },
+  'profile.show': {
+    methods: ["GET","HEAD"],
+    pattern: '/profile',
+    tokens: [{"old":"/profile","type":0,"val":"profile","end":""}],
+    types: placeholder as Registry['profile.show']['types'],
   },
   'playlists.create': {
     methods: ["GET","HEAD"],

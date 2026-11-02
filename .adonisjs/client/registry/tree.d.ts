@@ -2,6 +2,10 @@
 import type { routes } from './index.ts'
 
 export interface ApiDefinition {
+  googleAuth: {
+    redirect: typeof routes['google_auth.redirect']
+    callback: typeof routes['google_auth.callback']
+  }
   admin: {
     index: typeof routes['admin.index']
     users: typeof routes['admin.users']
@@ -68,6 +72,9 @@ export interface ApiDefinition {
   session: {
     create: typeof routes['session.create']
     store: typeof routes['session.store']
+  }
+  profile: {
+    show: typeof routes['profile.show']
   }
   uploads: {
     images: {

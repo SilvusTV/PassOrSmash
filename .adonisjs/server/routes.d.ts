@@ -4,6 +4,8 @@ type ParamValue = string | number | bigint | boolean
 
 export type ScannedRoutes = {
   ALL: {
+    'google_auth.redirect': { paramsTuple?: []; params?: {} }
+    'google_auth.callback': { paramsTuple?: []; params?: {} }
     'admin.index': { paramsTuple?: []; params?: {} }
     'admin.users': { paramsTuple?: []; params?: {} }
     'admin.user': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
@@ -44,6 +46,7 @@ export type ScannedRoutes = {
     'session.create': { paramsTuple?: []; params?: {} }
     'session.store': { paramsTuple?: []; params?: {} }
     'playlists.index': { paramsTuple?: []; params?: {} }
+    'profile.show': { paramsTuple?: []; params?: {} }
     'playlists.create': { paramsTuple?: []; params?: {} }
     'playlists.store': { paramsTuple?: []; params?: {} }
     'playlists.import': { paramsTuple?: []; params?: {} }
@@ -54,6 +57,8 @@ export type ScannedRoutes = {
     'auth.logout': { paramsTuple?: []; params?: {} }
   }
   GET: {
+    'google_auth.redirect': { paramsTuple?: []; params?: {} }
+    'google_auth.callback': { paramsTuple?: []; params?: {} }
     'admin.index': { paramsTuple?: []; params?: {} }
     'admin.users': { paramsTuple?: []; params?: {} }
     'admin.user': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
@@ -80,10 +85,13 @@ export type ScannedRoutes = {
     'new_account.create': { paramsTuple?: []; params?: {} }
     'session.create': { paramsTuple?: []; params?: {} }
     'playlists.index': { paramsTuple?: []; params?: {} }
+    'profile.show': { paramsTuple?: []; params?: {} }
     'playlists.create': { paramsTuple?: []; params?: {} }
     'playlists.edit': { paramsTuple: [ParamValue]; params: {'slug': ParamValue} }
   }
   HEAD: {
+    'google_auth.redirect': { paramsTuple?: []; params?: {} }
+    'google_auth.callback': { paramsTuple?: []; params?: {} }
     'admin.index': { paramsTuple?: []; params?: {} }
     'admin.users': { paramsTuple?: []; params?: {} }
     'admin.user': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
@@ -109,6 +117,7 @@ export type ScannedRoutes = {
     'new_account.create': { paramsTuple?: []; params?: {} }
     'session.create': { paramsTuple?: []; params?: {} }
     'playlists.index': { paramsTuple?: []; params?: {} }
+    'profile.show': { paramsTuple?: []; params?: {} }
     'playlists.create': { paramsTuple?: []; params?: {} }
     'playlists.edit': { paramsTuple: [ParamValue]; params: {'slug': ParamValue} }
   }
