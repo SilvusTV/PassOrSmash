@@ -199,7 +199,11 @@ export default function Home({ featured = [] }: { featured: Card[] }) {
                   <h3>{card.title}</h3>
                   <p>{card.description}</p>
                   <div>
-                    <span>{card.plays ? `${card.plays} parties` : 'Nouveau'}</span>
+                    <span>
+                      {card.plays
+                        ? `${card.plays} partie${card.plays === 1 ? '' : 's'}`
+                        : 'Nouveau'}
+                    </span>
                     <strong>JOUER ↗</strong>
                   </div>
                 </div>

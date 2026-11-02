@@ -11,6 +11,7 @@ import { mkdir, writeFile } from 'node:fs/promises'
 import sharp from 'sharp'
 import type { BrowserContext } from 'playwright'
 import AdminManagement from '#services/admin/management'
+import { playlistsWithActivity } from '#services/playlist_activity'
 
 const base = 'http://localhost:3333'
 if (process.env.EDITORIAL_DB_TESTS === '1') {
@@ -63,6 +64,44 @@ if (process.env.EDITORIAL_DB_TESTS === '1') {
       if (!token) throw new Error('CSRF cookie missing')
       return { 'X-XSRF-TOKEN': decodeURIComponent(token.value) }
     }
+    test('a browser can play twice while duplicate votes within a game are ignored', async ({
+      browserContext,
+      assert,
+    }) => {
+      playlist.isPublic = true
+      await playlist.save()
+      const page = await browserContext.newPage()
+      await page.goto(`${base}/p/${playlist.slug}`)
+      const items = await PlaylistItem.query().where('playlist_id', playlist.id).orderBy('position')
+      const sessionId = randomUUID()
+      const headers = await csrf(browserContext)
+      const send = (itemId: number, session: string) =>
+        browserContext.request.post(`${base}/vote`, {
+          headers,
+          data: { itemId, choice: 'smash', sessionId: session },
+          maxRedirects: 0,
+        })
+      const responses = await Promise.all([
+        send(items[0].id, sessionId),
+        send(items[0].id, sessionId),
+      ])
+      responses.forEach((response) => assert.equal(response.status(), 302))
+      await send(items[1].id, sessionId)
+      const replay = await send(items[0].id, randomUUID())
+      assert.equal(replay.status(), 302)
+      const firstItem = await PlaylistItem.findOrFail(items[0].id)
+      assert.equal(firstItem.smashes, 2)
+      const current = await playlistsWithActivity().where('playlists.id', playlist.id).firstOrFail()
+      // One historical participant from setup, plus two new games in the same browser.
+      assert.equal(Number(current.$extras.participation_count), 3)
+      assert.equal(
+        await Vote.query()
+          .where('playlist_item_id', items[0].id)
+          .count('* as total')
+          .then((rows) => Number(rows[0].$extras.total)),
+        3
+      )
+    })
     test('administrator browses global stats and private playlists, edits without losing votes and deletes only after confirmation', async ({
       browserContext,
       assert,

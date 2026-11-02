@@ -12,6 +12,8 @@ Le tableau de bord regroupe tous les comptes, les comptes suspendus et récemmen
 
 Les participants correspondent aux identifiants visiteurs distincts ayant voté : ce ne sont pas des personnes uniques certifiées. Les statistiques portent sur les données encore présentes ; supprimer une playlist ou un élément supprime également ses votes. Le site ne mesure pas ici les visites de pages.
 
+Les cartes de playlists affichent les parties jouées : une session ayant au moins un vote compte une partie, même incomplète. Le bouton « Rejouer » crée une nouvelle session et permet de voter à nouveau depuis le même navigateur. Chaque image ne reçoit qu’un vote par navigateur et par session ; les répétitions d’une requête n’ajoutent pas de vote. Les votes historiques sans session sont regroupés par navigateur et par playlist, car leurs éventuels rejouages ne peuvent pas être reconstitués. Appliquer la migration `1793660000000_add_vote_sessions` avant de servir cette version. Son retour arrière nécessite une intervention conservant les données : l’ancien schéma ne peut pas représenter les votes répétés.
+
 ## Comptes
 
 La liste permet de rechercher par nom, pseudo, adresse électronique ou identifiant Discord et de filtrer par statut. La fiche d’un compte présente ses statistiques et ses playlists, avec un lien vers la liste complète.

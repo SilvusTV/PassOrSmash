@@ -2,6 +2,7 @@ import type { HttpContext } from '@adonisjs/core/http'
 import Playlist from '#models/playlist'
 import PlaylistItem from '#models/playlist_item'
 import { appUrl } from '#config/app'
+import { playlistsWithActivity } from '#services/playlist_activity'
 
 async function playlistCards(playlists: Playlist[]) {
   return Promise.all(
@@ -16,7 +17,7 @@ async function playlistCards(playlists: Playlist[]) {
         slug: playlist.slug,
         title: playlist.title,
         description: playlist.description || undefined,
-        plays: playlist.plays,
+        plays: Number(playlist.$extras.participation_count || 0),
         accent: playlist.accent,
         cover: cover?.imageUrl,
         itemCount: Number(count[0].$extras.total),
@@ -27,7 +28,7 @@ async function playlistCards(playlists: Playlist[]) {
 
 export default class HomeController {
   async index({ inertia }: HttpContext) {
-    const playlists = await Playlist.query()
+    const playlists = await playlistsWithActivity()
       .where('isPublic', true)
       .orderBy('createdAt', 'desc')
       .limit(6)
@@ -35,7 +36,10 @@ export default class HomeController {
   }
 
   async explore({ inertia }: HttpContext) {
-    const playlists = await Playlist.query().where('isPublic', true).orderBy('plays', 'desc')
+    const playlists = await playlistsWithActivity()
+      .where('isPublic', true)
+      .orderBy('participation_count', 'desc')
+      .orderBy('id', 'desc')
     return inertia.render('explore', { playlists: await playlistCards(playlists) })
   }
 

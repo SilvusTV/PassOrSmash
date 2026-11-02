@@ -1,6 +1,7 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import PlaylistItem from '#models/playlist_item'
-import Vote from '#models/vote'
+import Playlist from '#models/playlist'
+import db from '@adonisjs/lucid/services/db'
 import { voteValidator } from '#validators/vote'
 import string from '@adonisjs/core/helpers/string'
 
@@ -8,22 +9,29 @@ export default class VoteController {
   async store({ request, response, auth }: HttpContext) {
     const payload = await request.validateUsing(voteValidator)
     const item = await PlaylistItem.findOrFail(payload.itemId)
+    const playlist = await Playlist.findOrFail(item.playlistId)
+    if (!playlist.isPublic && playlist.userId !== auth.user?.id) return response.notFound()
     const visitorId = request.cookie('pos_visitor') || string.random(32)
-    const existing = await Vote.query()
-      .where('playlistItemId', item.id)
-      .where('visitorId', visitorId)
-      .first()
-    if (!existing) {
-      await Vote.create({
-        playlistItemId: item.id,
-        userId: auth.user?.id || null,
-        visitorId,
-        isSmash: payload.choice === 'smash',
-      })
-      if (payload.choice === 'smash') item.smashes += 1
-      else item.passes += 1
-      await item.save()
-    }
+    await db.transaction(async (trx) => {
+      const inserted = await trx
+        .table('votes')
+        .insert({
+          playlist_item_id: item.id,
+          user_id: auth.user?.id || null,
+          visitor_id: visitorId,
+          session_id: payload.sessionId,
+          is_smash: payload.choice === 'smash',
+          created_at: new Date(),
+        })
+        .onConflict()
+        .ignore()
+        .returning('id')
+      if (inserted.length)
+        await trx
+          .from('playlist_items')
+          .where('id', item.id)
+          .increment(payload.choice === 'smash' ? 'smashes' : 'passes', 1)
+    })
     response.cookie('pos_visitor', visitorId, { httpOnly: true, sameSite: 'lax', maxAge: '1 year' })
     return response.redirect().back()
   }

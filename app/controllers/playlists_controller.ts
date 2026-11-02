@@ -5,6 +5,7 @@ import { createPlaylistValidator, importPlaylistsValidator } from '#validators/p
 import string from '@adonisjs/core/helpers/string'
 import db from '@adonisjs/lucid/services/db'
 import type { ModelAssignOptions } from '@adonisjs/lucid/types/model'
+import { playlistsWithActivity } from '#services/playlist_activity'
 
 type PlaylistPayload = Awaited<ReturnType<typeof createPlaylistValidator.validate>>
 
@@ -51,7 +52,7 @@ export default class PlaylistsController {
    * Display a list of resource
    */
   async index({ auth, inertia }: HttpContext) {
-    const playlists = await Playlist.query()
+    const playlists = await playlistsWithActivity()
       .where('userId', auth.user!.id)
       .orderBy('createdAt', 'desc')
     const cards = await Promise.all(
@@ -68,7 +69,7 @@ export default class PlaylistsController {
           slug: playlist.slug,
           title: playlist.title,
           description: playlist.description || undefined,
-          plays: playlist.plays,
+          plays: Number(playlist.$extras.participation_count || 0),
           isPublic: playlist.isPublic,
           accent: playlist.accent,
           cover: cover?.imageUrl,

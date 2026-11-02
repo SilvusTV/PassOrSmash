@@ -402,6 +402,7 @@ export class VoteSchema extends BaseModel {
     'id',
     'isSmash',
     'playlistItemId',
+    'sessionId',
     'updatedAt',
     'userId',
     'visitorId',
@@ -415,6 +416,8 @@ export class VoteSchema extends BaseModel {
   declare isSmash: boolean
   @column()
   declare playlistItemId: number
+  @column()
+  declare sessionId: string | null
   @column.dateTime({ autoCreate: true, autoUpdate: true })
   declare updatedAt: DateTime | null
   @column()

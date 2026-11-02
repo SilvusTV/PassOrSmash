@@ -40,7 +40,8 @@ export default function Dashboard({ playlists }: { playlists: Card[] }) {
                 </div>
                 <div className="dashboard-body">
                   <span>
-                    {card.itemCount} images · {card.plays} parties
+                    {card.itemCount} images · {card.plays} partie
+                    {card.plays === 1 ? '' : 's'}
                   </span>
                   <h2>{card.title}</h2>
                   <p>{card.description}</p>

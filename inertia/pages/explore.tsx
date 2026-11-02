@@ -49,7 +49,9 @@ export default function Explore({ playlists }: { playlists: Card[] }) {
                     <h3>{card.title}</h3>
                     <p>{card.description}</p>
                     <div>
-                      <span>{card.plays || 0} parties</span>
+                      <span>
+                        {card.plays || 0} partie{card.plays === 1 ? '' : 's'}
+                      </span>
                       <strong>JOUER ↗</strong>
                     </div>
                   </div>

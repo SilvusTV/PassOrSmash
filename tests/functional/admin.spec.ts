@@ -9,6 +9,7 @@ import { randomUUID } from 'node:crypto'
 import AdminManagement from '#services/admin/management'
 import { createMcpHandler } from '@modelcontextprotocol/server'
 import { createEditorialServer } from '../../app/mcp/server.js'
+import { playlistsWithActivity } from '#services/playlist_activity'
 
 if (process.env.EDITORIAL_DB_TESTS === '1') {
   test.group('Global administration integration', (group) => {
@@ -110,6 +111,32 @@ if (process.env.EDITORIAL_DB_TESTS === '1') {
         })),
       }
     }
+    test('playlist cards count distinct voting visitors using historical votes', async ({
+      assert,
+    }) => {
+      const items = await PlaylistItem.query().where('playlist_id', playlist.id).orderBy('position')
+      const first = await Vote.query().where('playlist_item_id', items[0].id).firstOrFail()
+      await Vote.create({ playlistItemId: items[1].id, visitorId: first.visitorId, isSmash: false })
+      const once = await playlistsWithActivity().where('playlists.id', playlist.id).firstOrFail()
+      assert.equal(Number(once.$extras.participation_count), 1)
+      await Vote.create({
+        playlistItemId: items[0].id,
+        visitorId: 'another-participant',
+        isSmash: true,
+      })
+      const twice = await playlistsWithActivity().where('playlists.id', playlist.id).firstOrFail()
+      assert.equal(Number(twice.$extras.participation_count), 2)
+      const empty = await Playlist.create({
+        userId: owner.id,
+        title: 'Sans votes',
+        slug: 'sans-votes',
+        isPublic: true,
+        accent: 'lime',
+        plays: 99,
+      })
+      const zero = await playlistsWithActivity().where('playlists.id', empty.id).firstOrFail()
+      assert.equal(Number(zero.$extras.participation_count), 0)
+    })
     test('MCP edits an owned playlist, preserves votes and rejects stale or foreign writes', async ({
       assert,
     }) => {

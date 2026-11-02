@@ -75,6 +75,7 @@ export default function Show({
   const [index, setIndex] = useState(0)
   const [done, setDone] = useState(false)
   const [votes, setVotes] = useState<Record<number, 'smash' | 'pass'>>({})
+  const [sessionId, setSessionId] = useState<string | null>(null)
   const item = items[index]
   const seoDescription =
     playlist.description ||
@@ -104,9 +105,11 @@ export default function Show({
       else setDone(true)
       return
     }
+    const currentSession = sessionId || crypto.randomUUID()
+    setSessionId(currentSession)
     router.post(
       '/vote',
-      { itemId: item.id, choice },
+      { itemId: item.id, choice, sessionId: currentSession },
       {
         preserveScroll: true,
         preserveState: true,
@@ -186,6 +189,7 @@ export default function Show({
                 setIndex(0)
                 setDone(false)
                 setVotes({})
+                setSessionId(null)
               }}
             >
               Rejouer
