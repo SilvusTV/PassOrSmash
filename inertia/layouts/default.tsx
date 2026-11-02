@@ -165,7 +165,17 @@ export default function Layout({ children }: { children: ReactElement }) {
         <div>
           <Link href="/jeu-smash-or-pass">Le jeu</Link>
           <Link href="/explore">Explorer</Link>
-          <a href="mailto:hello@passorsmash.fr">Contact</a>
+          <a href="mailto:contact@passorsmash.fr">Contact</a>
+          <Link href="/mentions-legales">Mentions légales</Link>
+          <Link href="/cgu">CGU</Link>
+          <Link href="/confidentialite">Confidentialité</Link>
+          <button
+            className="footer-cookie-button"
+            type="button"
+            onClick={() => window.dispatchEvent(new Event('pos-cookie-preferences'))}
+          >
+            Gérer les cookies
+          </button>
           <span>© {new Date().getFullYear()}</span>
         </div>
       </footer>

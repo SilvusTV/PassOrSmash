@@ -64,6 +64,42 @@ if (process.env.EDITORIAL_DB_TESTS === '1') {
       if (!token) throw new Error('CSRF cookie missing')
       return { 'X-XSRF-TOKEN': decodeURIComponent(token.value) }
     }
+    test('public legal pages are readable on mobile and audience consent can be withdrawn', async ({
+      browserContext,
+      assert,
+    }) => {
+      const previousAnalytics = env.get('VITE_GOOGLE_ANALYTICS_ID')
+      env.set('VITE_GOOGLE_ANALYTICS_ID', 'G-TEST12345')
+      const page = await browserContext.newPage()
+      let loads = 0
+      await page.route('https://www.googletagmanager.com/**', async (route) => {
+        loads++
+        await route.fulfill({ contentType: 'application/javascript', body: '' })
+      })
+      try {
+        await page.setViewportSize({ width: 390, height: 844 })
+        await page.goto(`${base}/cgu`)
+        await page.getByRole('heading', { name: 'Conditions générales d’utilisation.' }).waitFor()
+        assert.isTrue(
+          await page.evaluate('document.documentElement.scrollWidth <= window.innerWidth')
+        )
+        assert.equal(loads, 0)
+        await page.getByRole('button', { name: 'Refuser', exact: true }).click()
+        await page.screenshot({ path: 'tmp/legal-terms-mobile.png', fullPage: true })
+        await page.getByRole('button', { name: 'Gérer les cookies', exact: true }).click()
+        await page.getByRole('button', { name: 'Accepter', exact: true }).click()
+        await page.waitForFunction("!!document.querySelector('script[data-ga-id]')")
+        await page.getByRole('button', { name: 'Gérer les cookies', exact: true }).click()
+        await page.getByRole('button', { name: 'Refuser', exact: true }).click()
+        await page.waitForLoadState('load')
+        await page.waitForFunction(
+          "localStorage.getItem('passorsmash_analytics_consent') === 'refused' && !document.querySelector('script[data-ga-id]')"
+        )
+        assert.equal(loads, 1)
+      } finally {
+        env.set('VITE_GOOGLE_ANALYTICS_ID', previousAnalytics)
+      }
+    })
     test('account menu opens profile, persists theme and logs out explicitly on mobile', async ({
       browserContext,
       assert,
@@ -80,6 +116,9 @@ if (process.env.EDITORIAL_DB_TESTS === '1') {
       await page.getByText(owner.email, { exact: true }).waitFor()
       await page.reload()
       assert.equal(await page.locator('html').getAttribute('data-theme'), 'dark')
+      await page.setViewportSize({ width: 1440, height: 1000 })
+      await page.screenshot({ path: 'tmp/profile-redesign-desktop.png', fullPage: true })
+      await page.setViewportSize({ width: 390, height: 844 })
       assert.isTrue(
         await page.evaluate('document.documentElement.scrollWidth <= window.innerWidth')
       )

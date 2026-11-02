@@ -57,6 +57,15 @@ export default function Analytics() {
   const measurementId = typeof analyticsId === 'string' ? analyticsId.trim() : ''
   const [consent, setConsent] = useState<'loading' | 'accepted' | 'refused' | null>('loading')
   const lastPageView = useRef('')
+  const [preferencesOpen, setPreferencesOpen] = useState(false)
+  useEffect(() => {
+    const open = () => {
+      setPreferencesOpen(true)
+      setConsent(null)
+    }
+    window.addEventListener('pos-cookie-preferences', open)
+    return () => window.removeEventListener('pos-cookie-preferences', open)
+  }, [])
 
   useEffect(() => {
     if (!measurementIdPattern.test(measurementId)) return
@@ -80,26 +89,56 @@ export default function Analytics() {
     })
   }, [consent, measurementId])
 
-  if (!measurementIdPattern.test(measurementId) || consent !== null) return null
+  const enabled = measurementIdPattern.test(measurementId)
+  if ((!enabled && !preferencesOpen) || consent !== null) return null
 
   const choose = (value: 'accepted' | 'refused') => {
     localStorage.setItem(consentKey, value)
     setConsent(value)
+    setPreferencesOpen(false)
+    if (value === 'refused' && window.gtag) {
+      window.gtag('consent', 'update', { analytics_storage: 'denied' })
+      const domains = window.location.hostname.split('.')
+      for (const cookie of document.cookie.split(';')) {
+        const name = cookie.split('=')[0].trim()
+        if (!name.startsWith('_ga')) continue
+        document.cookie = `${name}=; Max-Age=0; path=/`
+        for (let i = 0; i < domains.length - 1; i++)
+          document.cookie = `${name}=; Max-Age=0; path=/; domain=.${domains.slice(i).join('.')}`
+      }
+      window.location.reload()
+    }
   }
 
   return (
     <aside className="consent-banner" aria-label="Préférences de confidentialité">
       <p>
-        Nous utilisons Google Analytics, avec ton accord, pour mesurer l’audience et améliorer le
-        site. Aucun suivi n’est lancé avant ton choix.
+        {enabled
+          ? 'Avec ton accord, Google Analytics mesure l’audience. Tu peux refuser ou retirer ton accord à tout moment, sans bloquer le jeu.'
+          : 'La mesure d’audience Google Analytics n’est pas activée. Seuls les traceurs de fonctionnement et tes préférences sont utilisés.'}{' '}
+        <a href="/confidentialite">En savoir plus</a>
       </p>
       <div>
-        <button className="consent-refuse" onClick={() => choose('refused')}>
-          Refuser
-        </button>
-        <button className="consent-accept" onClick={() => choose('accepted')}>
-          Accepter
-        </button>
+        {enabled ? (
+          <>
+            <button className="consent-refuse" onClick={() => choose('refused')}>
+              Refuser
+            </button>
+            <button className="consent-accept" onClick={() => choose('accepted')}>
+              Accepter
+            </button>
+          </>
+        ) : (
+          <button
+            className="consent-refuse"
+            onClick={() => {
+              setPreferencesOpen(false)
+              setConsent('refused')
+            }}
+          >
+            Fermer
+          </button>
+        )}
       </div>
     </aside>
   )

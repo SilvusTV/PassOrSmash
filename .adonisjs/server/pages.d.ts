@@ -28,6 +28,7 @@ declare module '@adonisjs/inertia/types' {
     'errors/server_error': ExtractProps<(typeof import('../../inertia/pages/errors/server_error.tsx'))['default']>
     'explore': ExtractProps<(typeof import('../../inertia/pages/explore.tsx'))['default']>
     'home': ExtractProps<(typeof import('../../inertia/pages/home.tsx'))['default']>
+    'legal': ExtractProps<(typeof import('../../inertia/pages/legal.tsx'))['default']>
     'oauth/consent': ExtractProps<(typeof import('../../inertia/pages/oauth/consent.tsx'))['default']>
     'playlists/create': ExtractProps<(typeof import('../../inertia/pages/playlists/create.tsx'))['default']>
     'playlists/edit': ExtractProps<(typeof import('../../inertia/pages/playlists/edit.tsx'))['default']>

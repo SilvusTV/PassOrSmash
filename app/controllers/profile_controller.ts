@@ -12,8 +12,18 @@ export default class ProfileController {
       .count('* as total')
       .first()
     const votes = await db.from('votes').where('user_id', auth.user!.id).count('* as total').first()
+    const publicPlaylists = await db
+      .from('playlists')
+      .where({ user_id: auth.user!.id, is_public: true })
+      .count('* as total')
+      .first()
     return inertia.render('profile', {
-      statistics: { playlists: Number(playlists?.total || 0), votes: Number(votes?.total || 0) },
+      statistics: {
+        playlists: Number(playlists?.total || 0),
+        publicPlaylists: Number(publicPlaylists?.total || 0),
+        votes: Number(votes?.total || 0),
+      },
+      connections: { google: !!auth.user!.googleId, discord: !!auth.user!.discordId },
     })
   }
 }

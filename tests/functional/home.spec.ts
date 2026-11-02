@@ -1,6 +1,22 @@
 import { test } from '@japa/runner'
 
 test.group('Home', () => {
+  test('legal pages identify the publisher, host, moderation access and privacy contact', async ({
+    assert,
+  }) => {
+    for (const [path, expected] of [
+      ['/mentions-legales', 'Hugo COMBE'],
+      ['/cgu', 'publiques comme privées'],
+      ['/confidentialite', 'responsable du traitement'],
+    ]) {
+      const response = await fetch(`http://localhost:3333${path}`)
+      assert.equal(response.status, 200)
+      const html = await response.text()
+      assert.include(html, expected)
+      assert.include(html, 'contact@passorsmash.fr')
+      if (path === '/mentions-legales') assert.include(html, 'OVH')
+    }
+  })
   test('renders the public landing page', async ({ assert }) => {
     const response = await fetch('http://localhost:3333/')
     const html = await response.text()
