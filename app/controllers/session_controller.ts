@@ -7,9 +7,17 @@ export default class SessionController {
     return inertia.render('auth/login', {})
   }
 
-  async store({ request, auth, response }: HttpContext) {
+  async store({ request, auth, response, session }: HttpContext) {
     const { email, password } = await request.validateUsing(loginValidator)
-    const user = await User.verifyCredentials(email, password)
+    let user: User
+    try {
+      user = await User.verifyCredentials(email, password)
+    } catch (error) {
+      if (!(error instanceof Error) || !('code' in error) || error.code !== 'E_INVALID_CREDENTIALS')
+        throw error
+      session.flash('inputErrorsBag', { email: 'Adresse e-mail ou mot de passe incorrect.' })
+      return response.redirect().withQs(false).toPath('/login')
+    }
     if (user.suspendedAt) return response.forbidden('Ce compte est suspendu.')
 
     await auth.use('web').login(user)

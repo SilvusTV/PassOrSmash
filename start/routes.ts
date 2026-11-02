@@ -14,6 +14,9 @@ const McpController = () => import('#controllers/mcp_controller')
 const EditorialController = () => import('#controllers/editorial_controller')
 const OauthController = () => import('#controllers/oauth_controller')
 const AdminController = () => import('#controllers/admin_controller')
+const GoogleAuthController = () => import('#controllers/google_auth_controller')
+router.get('/auth/google', [GoogleAuthController, 'redirect'])
+router.get('/auth/google/callback', [GoogleAuthController, 'callback'])
 router
   .group(() => {
     router.get('/', [AdminController, 'index'])
@@ -83,6 +86,9 @@ router
 router
   .group(() => {
     router.get('/dashboard', [controllers.Playlists, 'index']).as('playlists.index')
+    router
+      .get('/profile', [() => import('#controllers/profile_controller'), 'show'])
+      .as('profile.show')
     router.get('/playlists/create', [controllers.Playlists, 'create']).as('playlists.create')
     router.post('/playlists', [controllers.Playlists, 'store']).as('playlists.store')
     router.post('/playlists/import', [controllers.Playlists, 'import']).as('playlists.import')

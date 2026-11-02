@@ -1,7 +1,7 @@
 /* eslint-disable @adonisjs/prefer-adonisjs-inertia-link */
 import { toast, Toaster } from 'sonner'
-import { Head, Link, usePage } from '@inertiajs/react'
-import { type ReactElement, useEffect } from 'react'
+import { Head, Link, router, usePage } from '@inertiajs/react'
+import { type ReactElement, useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { Form } from '@adonisjs/inertia/react'
 import Analytics from '~/components/analytics'
 
@@ -14,13 +14,52 @@ function Brand() {
     </span>
   )
 }
+function subscribeTheme(listener: () => void) {
+  window.addEventListener('pos-theme', listener)
+  return () => window.removeEventListener('pos-theme', listener)
+}
+const readTheme = () =>
+  document.documentElement.dataset.theme === 'dark' ? ('dark' as const) : ('light' as const)
+const serverTheme = () => 'light' as const
 
 export default function Layout({ children }: { children: ReactElement }) {
   const { url, flash, props } = usePage()
+  const [accountOpen, setAccountOpen] = useState(false)
+  const theme = useSyncExternalStore(subscribeTheme, readTheme, serverTheme)
+  const accountRef = useRef<HTMLDivElement>(null)
+  useEffect(() => router.on('navigate', () => setAccountOpen(false)), [])
+  useEffect(() => {
+    if (!accountOpen) return
+    const close = (event: PointerEvent) => {
+      if (!accountRef.current?.contains(event.target as Node)) setAccountOpen(false)
+    }
+    const escape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setAccountOpen(false)
+        accountRef.current?.querySelector<HTMLButtonElement>('.avatar-button')?.focus()
+      }
+    }
+    document.addEventListener('pointerdown', close)
+    document.addEventListener('keydown', escape)
+    return () => {
+      document.removeEventListener('pointerdown', close)
+      document.removeEventListener('keydown', escape)
+    }
+  }, [accountOpen])
+  const chooseTheme = (next: 'light' | 'dark') => {
+    document.documentElement.dataset.theme = next
+    window.dispatchEvent(new Event('pos-theme'))
+    try {
+      localStorage.setItem('pos_theme', next)
+    } catch {
+      /* Storage can be unavailable. */
+    }
+  }
   const user = props.user as
     { fullName?: string; username?: string; avatarUrl?: string; initials?: string } | undefined
   const isPrivatePage =
     url.startsWith('/dashboard') ||
+    url.startsWith('/profile') ||
     url === '/admin' ||
     url.startsWith('/admin/') ||
     url.startsWith('/oauth/') ||
@@ -63,16 +102,59 @@ export default function Layout({ children }: { children: ReactElement }) {
               <Link href="/playlists/create" className="nav-cta">
                 Créer
               </Link>
-              <Form route="auth.logout">
-                <button className="avatar-button" type="submit" title="Se déconnecter">
+              <div
+                className="account-control"
+                ref={accountRef}
+                onBlur={(event) => {
+                  if (!event.currentTarget.contains(event.relatedTarget)) setAccountOpen(false)
+                }}
+              >
+                <button
+                  className="avatar-button"
+                  type="button"
+                  aria-label="Mon compte"
+                  aria-expanded={accountOpen}
+                  aria-controls="account-panel"
+                  onClick={() => setAccountOpen(!accountOpen)}
+                >
                   {user.avatarUrl ? <img src={user.avatarUrl} alt="" /> : user.initials}
                 </button>
-              </Form>
+                {accountOpen && (
+                  <div className="account-panel" id="account-panel">
+                    <strong>{user.fullName || user.username || 'Mon compte'}</strong>
+                    <fieldset className="theme-picker">
+                      <legend>Apparence</legend>
+                      <button
+                        type="button"
+                        aria-pressed={theme === 'light'}
+                        onClick={() => chooseTheme('light')}
+                      >
+                        Clair
+                      </button>
+                      <button
+                        type="button"
+                        aria-pressed={theme === 'dark'}
+                        onClick={() => chooseTheme('dark')}
+                      >
+                        Foncé
+                      </button>
+                    </fieldset>
+                    <Link href="/profile">Voir mon profil</Link>
+                    <Link href="/dashboard">Mes playlists</Link>
+                    {props.editorialAdmin && <Link href="/admin">Administration</Link>}
+                    <Form route="auth.logout">
+                      <button className="account-logout" type="submit">
+                        Se déconnecter
+                      </button>
+                    </Form>
+                  </div>
+                )}
+              </div>
             </>
           ) : (
-            <a className="discord-button" href="/auth/discord">
-              <span aria-hidden="true">◈</span> Se connecter avec Discord
-            </a>
+            <Link className="nav-cta" href="/login">
+              Se connecter
+            </Link>
           )}
         </nav>
       </header>
@@ -87,7 +169,7 @@ export default function Layout({ children }: { children: ReactElement }) {
           <span>© {new Date().getFullYear()}</span>
         </div>
       </footer>
-      <Toaster position="top-center" richColors theme="dark" />
+      <Toaster position="top-center" richColors theme={theme} />
       <Analytics />
     </div>
   )

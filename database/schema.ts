@@ -367,6 +367,7 @@ export class UserSchema extends BaseModel {
     'discordId',
     'email',
     'fullName',
+    'googleId',
     'id',
     'password',
     'suspendedAt',
@@ -384,6 +385,8 @@ export class UserSchema extends BaseModel {
   declare email: string
   @column()
   declare fullName: string | null
+  @column()
+  declare googleId: string | null
   @column({ isPrimary: true })
   declare id: number
   @column({ serializeAs: null })

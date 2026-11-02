@@ -26,6 +26,9 @@ export default class InertiaMiddleware extends BaseInertiaMiddleware {
       user: ctx.inertia.always(auth?.user ? UserTransformer.transform(auth.user) : undefined),
       analyticsId: ctx.inertia.always(env.get('VITE_GOOGLE_ANALYTICS_ID')),
       editorialAdmin: ctx.inertia.always(isEditorialAdmin(auth?.user)),
+      googleEnabled: ctx.inertia.always(
+        !!env.get('GOOGLE_CLIENT_ID') && !!env.get('GOOGLE_CLIENT_SECRET')
+      ),
     }
   }
 

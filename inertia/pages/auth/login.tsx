@@ -1,49 +1,41 @@
+/* eslint-disable @adonisjs/prefer-adonisjs-inertia-link */
 import { Form } from '@adonisjs/inertia/react'
-
+import { Head, Link } from '@inertiajs/react'
+import AuthOptions from '~/components/auth_options'
 export default function Login() {
   return (
-    <div className="form-container">
-      <div>
-        <h1> Login </h1>
-        <p>Enter your details below to login to your account</p>
-      </div>
-
-      <div>
+    <section className="auth-page">
+      <Head title="Se connecter" />
+      <span className="eyebrow">Bienvenue</span>
+      <h1>Se connecter.</h1>
+      <div className="auth-panel">
+        <AuthOptions />
+        <p className="auth-divider">ou avec votre adresse e-mail</p>
         <Form route="session.store">
-          {({ errors }) => (
+          {({ errors, processing }) => (
             <>
-              <div>
-                <label htmlFor="email">Email</label>
-                <input
-                  type="email"
-                  name="email"
-                  id="email"
-                  autoComplete="username"
-                  data-invalid={errors.email ? 'true' : undefined}
-                />
-                {errors.email && <div>{errors.email}</div>}
-              </div>
-
-              <div>
-                <label htmlFor="password">Password</label>
-                <input
-                  type="password"
-                  name="password"
-                  id="password"
-                  autoComplete="current-password"
-                />
-                {errors.password ? <span>{errors.password}</span> : ''}
-              </div>
-
-              <div>
-                <button type="submit" className="button">
-                  Login
-                </button>
-              </div>
+              <label htmlFor="email">Adresse e-mail</label>
+              <input id="email" name="email" type="email" required autoComplete="username" />
+              {errors.email && <p role="alert">{errors.email}</p>}
+              <label htmlFor="password">Mot de passe</label>
+              <input
+                id="password"
+                name="password"
+                type="password"
+                required
+                autoComplete="current-password"
+              />
+              {errors.password && <p role="alert">{errors.password}</p>}
+              <button className="button button-primary" disabled={processing} type="submit">
+                Se connecter par e-mail
+              </button>
             </>
           )}
         </Form>
+        <p>
+          Pas encore de compte ? <Link href="/signup">Créer un compte</Link>
+        </p>
       </div>
-    </div>
+    </section>
   )
 }

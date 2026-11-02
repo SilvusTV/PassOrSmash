@@ -64,6 +64,42 @@ if (process.env.EDITORIAL_DB_TESTS === '1') {
       if (!token) throw new Error('CSRF cookie missing')
       return { 'X-XSRF-TOKEN': decodeURIComponent(token.value) }
     }
+    test('account menu opens profile, persists theme and logs out explicitly on mobile', async ({
+      browserContext,
+      assert,
+    }) => {
+      await browserContext.loginAs(owner)
+      const page = await browserContext.newPage()
+      await page.setViewportSize({ width: 390, height: 844 })
+      await page.goto(`${base}/dashboard`)
+      await page.getByRole('button', { name: 'Mon compte', exact: true }).click()
+      await page.getByRole('button', { name: 'Foncé', exact: true }).click()
+      assert.equal(await page.locator('html').getAttribute('data-theme'), 'dark')
+      await page.getByRole('link', { name: 'Voir mon profil', exact: true }).click()
+      await page.getByRole('heading', { name: 'Mon profil.' }).waitFor()
+      await page.getByText(owner.email, { exact: true }).waitFor()
+      await page.reload()
+      assert.equal(await page.locator('html').getAttribute('data-theme'), 'dark')
+      assert.isTrue(
+        await page.evaluate('document.documentElement.scrollWidth <= window.innerWidth')
+      )
+      await page.screenshot({ path: 'tmp/profile-dark-mobile.png', fullPage: true })
+      await page.getByRole('button', { name: 'Mon compte', exact: true }).click()
+      await page.getByRole('button', { name: 'Clair', exact: true }).click()
+      await page.screenshot({ path: 'tmp/profile-menu-light-mobile.png', fullPage: true })
+      await page.keyboard.press('Escape')
+      assert.equal(
+        await page
+          .getByRole('button', { name: 'Mon compte', exact: true })
+          .getAttribute('aria-expanded'),
+        'false'
+      )
+      await page.getByRole('button', { name: 'Mon compte', exact: true }).click()
+      await page.getByRole('button', { name: 'Se déconnecter', exact: true }).click()
+      await page.getByRole('link', { name: 'Se connecter', exact: true }).waitFor()
+      const profile = await browserContext.request.get(`${base}/profile`, { maxRedirects: 0 })
+      assert.equal(profile.status(), 302)
+    })
     test('a browser can play twice while duplicate votes within a game are ignored', async ({
       browserContext,
       assert,

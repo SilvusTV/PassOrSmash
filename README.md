@@ -23,7 +23,7 @@ Le créateur se connecte avec Discord, ajoute ses images par URL ou import, puis
 
 ## Fonctionnalités
 
-- Authentification OAuth2 avec Discord
+- Connexion Discord, Google et inscription par e-mail/mot de passe ([configuration](docs/connexion.md))
 - Playlists publiques ou privées
 - Ajout d'images par URL ou import de fichier
 - Stockage S3 compatible avec MinIO en développement
