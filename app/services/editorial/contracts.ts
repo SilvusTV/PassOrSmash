@@ -14,9 +14,9 @@ export const sourceSchema = z.strictObject({
 })
 export const provenanceSchema = z.strictObject({
   url: z.url({ protocol: /^https$/ }),
-  credit: z.string().min(1).max(500),
-  license: z.enum(['CC0', 'CC-BY-4.0', 'CC-BY-SA-4.0', 'permission']),
-  license_url: z.url({ protocol: /^https$/ }),
+  credit: z.string().trim().max(500).default(''),
+  license: z.enum(['CC0', 'CC-BY-4.0', 'CC-BY-SA-4.0', 'permission']).optional(),
+  license_url: z.url({ protocol: /^https$/ }).optional(),
 })
 export const itemSchema = z.strictObject({
   id: id.optional(),

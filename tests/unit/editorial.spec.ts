@@ -1,6 +1,7 @@
 import { test } from '@japa/runner'
 import { DateTime } from 'luxon'
 import {
+  provenanceSchema,
   assertDraft,
   assertRevision,
   contentSchema,
@@ -13,6 +14,15 @@ import { scheduleSlots } from '#services/editorial/settings'
 import { createEditorialServer } from '../../app/mcp/server.js'
 import { createMcpHandler } from '@modelcontextprotocol/server'
 test.group('Editorial contracts', () => {
+  test('accepts a direct image link without credit or license', ({ assert }) => {
+    assert.deepEqual(provenanceSchema.parse({ url: 'https://example.com/photo.jpg' }), {
+      url: 'https://example.com/photo.jpg',
+      credit: '',
+    })
+    assert.isFalse(provenanceSchema.safeParse({ url: 'javascript:alert(1)' }).success)
+    assert.isFalse(provenanceSchema.safeParse({ url: 'file:///photo.jpg' }).success)
+  })
+
   test('rejects publication fields and unknown arguments in editorial content', ({ assert }) => {
     assert.isFalse(
       contentSchema.safeParse({ title: 'Sélection', category: 'jeux', is_public: true }).success

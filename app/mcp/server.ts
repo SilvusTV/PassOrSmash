@@ -501,7 +501,7 @@ export function createEditorialServer(actor: Actor) {
   )
   tool(
     'import_proposal_image',
-    'Planifie un import HTTPS protégé avec crédit et licence obligatoires ; aucune image publique avant validation.',
+    'Planifie un import HTTPS protégé avec crédit facultatif ; aucune image publique avant validation.',
     'editorial:write',
     { ...proposalInput, item_id: id, provenance: provenanceSchema, idempotency_key: key },
     async ({ idempotency_key, ...input }) => {

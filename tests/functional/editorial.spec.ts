@@ -7,6 +7,7 @@ import PlaylistItem from '#models/playlist_item'
 import { randomUUID } from 'node:crypto'
 import { DateTime } from 'luxon'
 import Proposals from '#services/editorial/proposals'
+import EditorialMedia from '#services/editorial/media'
 import EditorialJobs from '#services/editorial/jobs'
 import { contentSchema, settingsSchema, scopes, type Actor } from '#services/editorial/contracts'
 import { createMcpHandler } from '@modelcontextprotocol/server'
@@ -75,6 +76,24 @@ if (process.env.EDITORIAL_DB_TESTS === '1') {
         height: 120,
         created_at: new Date(),
       })
+    })
+    test('direct images need no local file and remain usable through publication', async ({
+      assert,
+    }) => {
+      const remote = await new EditorialMedia().link(actor, {
+        url: 'https://example.com/direct.png',
+      })
+      const input = content()
+      input.items = input.items.map((item) => ({ ...item, media_id: remote.media_id }))
+      const created = await service.create(actor, input, randomUUID())
+      const validation = await service.validate(actor, created.proposal_id, 1)
+      assert.isTrue(validation.valid)
+      const stored = await db.from('editorial_media').where('id', remote.media_id).first()
+      assert.equal(stored.path, '')
+      assert.equal(stored.provenance.credit, '')
+      await service.submit(actor, created.proposal_id, 1, randomUUID())
+      const published = await service.publish(actor, created.proposal_id, 1)
+      assert.lengthOf(await PlaylistItem.query().where('playlistId', published.playlist_id), 2)
     })
     test('concurrent identical creation is idempotent and rejects changed inputs', async ({
       assert,

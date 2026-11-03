@@ -14,7 +14,8 @@ type ImageJob = {
 }
 type Media = {
   id: string
-  provenance: { url: string; credit: string; license: string; license_url: string }
+  path: string
+  provenance: { url?: string; credit: string; license?: string; license_url?: string }
 }
 export default function EditorialShow({
   proposal,
@@ -109,8 +110,8 @@ function EditorialEditor({
   const [imageItem, setImageItem] = useState('')
   const [imageUrl, setImageUrl] = useState('')
   const [credit, setCredit] = useState('')
-  const [license, setLicense] = useState('CC0')
-  const [licenseUrl, setLicenseUrl] = useState('')
+  const [imageMode, setImageMode] = useState<'link' | 'upload'>('link')
+  const [imageFile, setImageFile] = useState<File | null>(null)
   const [busy, setBusy] = useState(false)
   const draft = proposal.status === 'draft'
   const dirty = contentKey(content) !== contentKey(proposal.content)
@@ -154,6 +155,10 @@ function EditorialEditor({
       { expected_revision: proposal.revision, idempotency_key: crypto.randomUUID(), ...data },
       { onFinish: () => setBusy(false) }
     )
+  }
+  const imageSrc = (mediaId: string) => {
+    const image = media.find((entry) => entry.id === mediaId)
+    return image && !image.path ? image.provenance.url : `/editorial/media/${mediaId}`
   }
   const updateItem = (index: number, fields: Partial<Item>) =>
     setContent({
@@ -222,7 +227,7 @@ function EditorialEditor({
                     id: index + 1,
                     title: item.title,
                     description: item.description,
-                    imageUrl: `/editorial/media/${item.media_id}`,
+                    imageUrl: imageSrc(item.media_id!)!,
                     smashes: 0,
                     passes: 0,
                     imageCredit: media.find((entry) => entry.id === item.media_id)?.provenance,
@@ -344,7 +349,7 @@ function EditorialEditor({
                       {item.media_id ? (
                         <img
                           className="studio-thumbnail"
-                          src={`/editorial/media/${item.media_id}`}
+                          src={imageSrc(item.media_id)}
                           alt=""
                           loading="lazy"
                         />
@@ -541,22 +546,23 @@ function EditorialEditor({
             <section className="editorial-panel">
               <span className="eyebrow">Donnez-leur une image</span>
               <h2>Images & crédits.</h2>
-              <p>
-                Enregistrez le contenu avant l’import. L’image sera téléchargée et vérifiée en
-                arrière-plan.
-              </p>
+              {dirty && <p role="status">Enregistrez le contenu avant d’ajouter une image.</p>}
               <form
+                className="studio-image-form"
                 onSubmit={(event) => {
                   event.preventDefault()
-                  post('import', {
-                    item_id: imageItem,
-                    provenance: JSON.stringify({
-                      url: imageUrl,
+                  if (busy || dirty) return
+                  setBusy(true)
+                  router.post(
+                    `/admin/editorial/proposals/${proposal.id}/image`,
+                    {
+                      expected_revision: proposal.revision,
+                      item_id: imageItem,
                       credit,
-                      license,
-                      license_url: licenseUrl,
-                    }),
-                  })
+                      ...(imageMode === 'upload' ? { image: imageFile } : { url: imageUrl }),
+                    },
+                    { onFinish: () => setBusy(false) }
+                  )
                 }}
               >
                 <label>
@@ -575,86 +581,93 @@ function EditorialEditor({
                     ))}
                   </select>
                 </label>
+                {imageMode === 'link' ? (
+                  <label>
+                    URL de l’image
+                    <input
+                      type="url"
+                      required
+                      pattern="https://.*"
+                      placeholder="https://…"
+                      value={imageUrl}
+                      onChange={(event) => setImageUrl(event.target.value)}
+                    />
+                  </label>
+                ) : (
+                  <label>
+                    Image depuis le PC
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp,image/gif"
+                      required
+                      onChange={(event) => setImageFile(event.target.files?.[0] || null)}
+                    />
+                  </label>
+                )}
                 <label>
-                  URL de l’image
+                  Crédit (facultatif)
                   <input
-                    type="url"
-                    required
-                    value={imageUrl}
-                    onChange={(event) => setImageUrl(event.target.value)}
-                  />
-                </label>
-                <label>
-                  Crédit
-                  <input
-                    required
+                    maxLength={500}
                     value={credit}
                     onChange={(event) => setCredit(event.target.value)}
                   />
                 </label>
-                <label>
-                  Licence
-                  <select
-                    aria-label="Licence"
-                    value={license}
-                    onChange={(event) => setLicense(event.target.value)}
+                <div className="editorial-actions studio-image-actions">
+                  <button
+                    className="button"
+                    type="button"
+                    onClick={() => setImageMode(imageMode === 'link' ? 'upload' : 'link')}
                   >
-                    {['CC0', 'CC-BY-4.0', 'CC-BY-SA-4.0', 'permission'].map((value) => (
-                      <option key={value}>{value}</option>
-                    ))}
-                  </select>
-                </label>
-                <label>
-                  Lien vers la licence ou l’autorisation
-                  <input
-                    type="url"
-                    required
-                    value={licenseUrl}
-                    onChange={(event) => setLicenseUrl(event.target.value)}
-                  />
-                </label>
-                <button className="button" disabled={busy || dirty || !imageItem} type="submit">
-                  Lancer l’import
-                </button>
+                    {imageMode === 'link' ? 'Importer depuis le PC' : 'Utiliser un lien'}
+                  </button>
+                  <button
+                    className="button button-primary"
+                    disabled={busy || dirty || !imageItem}
+                    type="submit"
+                  >
+                    {busy ? 'Enregistrement…' : 'Enregistrer l’image'}
+                  </button>
+                </div>
               </form>
             </section>
           )}
-          {tab === 'images' && (
-            <section className="editorial-panel">
-              <h2>Suivi des imports.</h2>
-              {dirty && (
-                <p role="status">Enregistrez vos modifications pour actualiser les imports.</p>
-              )}
-              {!jobs.length && <p>Aucun import lancé pour cette sélection.</p>}
-              {jobs.map((job) => (
-                <article className="editorial-row" key={job.id}>
-                  <strong>
-                    {proposal.content.items.find((item) => item.id === job.input.item_id)?.title ||
-                      'Élément retiré'}
-                  </strong>
-                  <span role="status">
-                    {{
-                      queued: 'En attente de traitement',
-                      running: 'Téléchargement et vérification…',
-                      succeeded: 'Image importée',
-                      failed: 'Import échoué',
-                    }[job.status] || job.status}{' '}
-                    · {job.attempts} tentative(s)
-                  </span>
-                  {job.error && <p className="studio-error">{job.error.message}</p>}
-                  {job.status === 'failed' && (
-                    <button
-                      className="button"
-                      disabled={busy}
-                      onClick={() => router.post(`/admin/editorial/jobs/${job.id}/retry`)}
-                    >
-                      Réessayer l’import
-                    </button>
-                  )}
-                </article>
-              ))}
-            </section>
-          )}
+          {tab === 'images' &&
+            jobs.some((job) => ['queued', 'running', 'failed'].includes(job.status)) && (
+              <section className="editorial-panel">
+                <h2>Suivi des imports.</h2>
+                {dirty && (
+                  <p role="status">Enregistrez vos modifications pour actualiser les imports.</p>
+                )}
+                {!jobs.length && <p>Aucun import lancé pour cette sélection.</p>}
+                {jobs.map((job) => (
+                  <article className="editorial-row" key={job.id}>
+                    <strong>
+                      {proposal.content.items.find((item) => item.id === job.input.item_id)
+                        ?.title || 'Élément retiré'}
+                    </strong>
+                    <span role="status">
+                      {{
+                        queued: 'En attente de traitement',
+                        running: 'Téléchargement et vérification…',
+                        succeeded: 'Image importée',
+                        failed: 'Import échoué',
+                      }[job.status] || job.status}{' '}
+                      · {job.attempts} tentative(s)
+                    </span>
+                    {job.error && <p className="studio-error">{job.error.message}</p>}
+                    {job.status === 'failed' && (
+                      <button
+                        className="button"
+                        disabled={busy}
+                        onClick={() => router.post(`/admin/editorial/jobs/${job.id}/retry`)}
+                      >
+                        Réessayer l’import
+                      </button>
+                    )}
+                  </article>
+                ))}
+              </section>
+            )}
           {tab !== 'content' && (
             <section className="editorial-panel">
               <h2>Aperçu de la version enregistrée</h2>
@@ -666,11 +679,7 @@ function EditorialEditor({
                   return (
                     <article key={item.id || index}>
                       {item.media_id ? (
-                        <img
-                          src={`/editorial/media/${item.media_id}`}
-                          alt={item.title}
-                          loading="lazy"
-                        />
+                        <img src={imageSrc(item.media_id)} alt={item.title} loading="lazy" />
                       ) : (
                         <p>Image manquante</p>
                       )}
@@ -678,14 +687,7 @@ function EditorialEditor({
                         {index + 1}. {item.title}
                       </h3>
                       <p>{item.description}</p>
-                      {provenance && (
-                        <p>
-                          Crédit : {provenance.credit} ·{' '}
-                          <a href={provenance.license_url} target="_blank" rel="noreferrer">
-                            {provenance.license}
-                          </a>
-                        </p>
-                      )}
+                      {provenance?.credit && <p>Crédit : {provenance.credit}</p>}
                       {item.source_urls.map((url) => (
                         <p key={url}>
                           <a href={url} target="_blank" rel="noreferrer">

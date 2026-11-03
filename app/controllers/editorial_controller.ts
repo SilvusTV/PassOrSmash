@@ -2,6 +2,8 @@ import type { HttpContext } from '@adonisjs/core/http'
 import db from '@adonisjs/lucid/services/db'
 import app from '@adonisjs/core/services/app'
 import env from '#start/env'
+import { readFile } from 'node:fs/promises'
+import EditorialMedia from '#services/editorial/media'
 import { randomUUID } from 'node:crypto'
 import { z } from 'zod'
 import Proposals, { audit } from '#services/editorial/proposals'
@@ -10,6 +12,8 @@ import { getSettings, saveSettings, readiness, scheduleSlots } from '#services/e
 import { dashboardActor, isEditorialAdmin } from '#services/editorial/access'
 import {
   EditorialError,
+  assertDraft,
+  assertRevision,
   contentSchema,
   id,
   key,
@@ -73,7 +77,7 @@ export default class EditorialController {
             .from('editorial_media')
             .where('user_id', auth.user!.id)
             .whereIn('id', mediaIds)
-            .select('id', 'provenance', 'width', 'height')
+            .select('id', 'path', 'provenance', 'width', 'height')
         : [],
     })
   }
@@ -233,7 +237,11 @@ export default class EditorialController {
     return this.perform(ctx, async () => {
       const actor = dashboardActor(ctx.auth.user!)
       const proposalId = id.parse(ctx.params.id)
-      const expected = revision.parse(ctx.request.input('expected_revision'))
+      const expected = revision.parse(
+        ctx.params.action === 'image'
+          ? Number(ctx.request.input('expected_revision'))
+          : ctx.request.input('expected_revision')
+      )
       switch (ctx.params.action) {
         case 'save':
           return this.proposals.mutate(actor, proposalId, expected, 'update', () =>
@@ -252,6 +260,45 @@ export default class EditorialController {
           return this.proposals.transition(actor, proposalId, expected, 'reject')
         case 'reopen':
           return this.proposals.transition(actor, proposalId, expected, 'reopen')
+        case 'image': {
+          const itemId = id.parse(ctx.request.input('item_id'))
+          const credit = z
+            .string()
+            .trim()
+            .max(500)
+            .parse(ctx.request.input('credit') ?? '')
+          const file = ctx.request.file('image', {
+            size: '8mb',
+            extnames: ['jpg', 'jpeg', 'png', 'webp', 'gif'],
+          })
+          if (file && (!file.isValid || !file.tmpPath))
+            throw new EditorialError('VALIDATION_FAILED', 'Image invalide (8 Mo maximum).')
+          return db.transaction(async (trx) => {
+            // Lock and validate the draft before storing or attaching any media.
+            const proposal = await this.proposals.get(actor, proposalId, trx, true)
+            assertRevision(proposal.revision, expected)
+            assertDraft(proposal.status)
+            if (!proposal.content.items.some((item: { id: string }) => item.id === itemId))
+              throw new EditorialError('VALIDATION_FAILED', 'Élément introuvable.')
+            const media = new EditorialMedia()
+            const result = file
+              ? await media.upload(actor, await readFile(file.tmpPath!), { credit }, trx)
+              : await media.link(actor, { url: ctx.request.input('url'), credit }, trx)
+            return this.proposals.mutate(
+              actor,
+              proposalId,
+              expected,
+              'image',
+              (content) => ({
+                ...content,
+                items: content.items.map((item) =>
+                  item.id === itemId ? { ...item, media_id: result.media_id } : item
+                ),
+              }),
+              trx
+            )
+          })
+        }
         case 'import': {
           const input = {
             proposal_id: proposalId,
@@ -297,6 +344,7 @@ export default class EditorialController {
         if (!playlistUse || !approvedUse) return response.notFound()
       }
     }
+    if (!media.path) return response.redirect(provenanceSchema.parse(media.provenance).url)
     response.header('Cache-Control', 'private, no-store').header('Content-Type', 'image/png')
     return response.download(app.tmpPath('editorial', media.path))
   }

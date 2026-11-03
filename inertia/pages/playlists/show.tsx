@@ -18,7 +18,7 @@ type Item = {
   imageUrl: string
   smashes: number
   passes: number
-  imageCredit?: { url: string; credit: string; license: string; license_url: string }
+  imageCredit?: { url?: string; credit: string; license?: string; license_url?: string }
 }
 
 const themeAdvice: Record<string, string> = {
@@ -64,15 +64,20 @@ function PlaylistEditorial({ playlist, items }: { playlist: Playlist; items: Ite
               <div>
                 <strong>{entry.title}</strong>
                 {entry.description && <p>{entry.description}</p>}
-                {entry.imageCredit && (
+                {entry.imageCredit?.credit && (
                   <p>
                     <a href={entry.imageCredit.url} target="_blank" rel="noreferrer">
                       {entry.imageCredit.credit}
-                    </a>{' '}
-                    ·{' '}
-                    <a href={entry.imageCredit.license_url} target="_blank" rel="noreferrer">
-                      {entry.imageCredit.license}
                     </a>
+                    {entry.imageCredit.license && entry.imageCredit.license_url && (
+                      <>
+                        {' '}
+                        ·{' '}
+                        <a href={entry.imageCredit.license_url} target="_blank" rel="noreferrer">
+                          {entry.imageCredit.license}
+                        </a>
+                      </>
+                    )}
                   </p>
                 )}
               </div>

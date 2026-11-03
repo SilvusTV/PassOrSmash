@@ -23,7 +23,7 @@ export default class EditorialJobs {
     private providers = {
       news: new NewsTopics(),
       generation: new GenerationProvider(),
-      media: new EditorialMedia(),
+      media: new EditorialMedia() as Pick<EditorialMedia, 'import'>,
     }
   ) {}
   async enqueue(

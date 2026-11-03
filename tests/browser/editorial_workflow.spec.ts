@@ -7,8 +7,7 @@ import { randomUUID } from 'node:crypto'
 import { mkdir, writeFile } from 'node:fs/promises'
 import sharp from 'sharp'
 import Proposals from '#services/editorial/proposals'
-import EditorialJobs from '#services/editorial/jobs'
-import { contentSchema, scopes, EditorialError, type Actor } from '#services/editorial/contracts'
+import { contentSchema, scopes, type Actor } from '#services/editorial/contracts'
 
 const base = 'http://localhost:3333'
 if (process.env.EDITORIAL_DB_TESTS === '1') {
@@ -90,7 +89,7 @@ if (process.env.EDITORIAL_DB_TESTS === '1') {
       assert.deepEqual(errors, [])
     })
 
-    test('edits multiline sources, queues both images, refreshes their progress, previews, reviews and publishes', async ({
+    test('edits sources, saves direct links and PC uploads with optional credit, previews and publishes', async ({
       browserContext,
       assert,
     }) => {
@@ -131,26 +130,6 @@ if (process.env.EDITORIAL_DB_TESTS === '1') {
         width: 160,
         height: 160,
         created_at: new Date(),
-      })
-      let imageCalls = 0
-      const worker = new EditorialJobs({
-        news: { find: async () => [] },
-        generation: {
-          generate: async () => {
-            throw new Error('unexpected generation')
-          },
-        },
-        media: {
-          import: async () => {
-            if (++imageCalls === 1)
-              throw new EditorialError(
-                'PROVIDER_UNAVAILABLE',
-                'Serveur image temporairement indisponible.',
-                false
-              )
-            return { media_id: mediaId, width: 160, height: 160, provenance }
-          },
-        },
       })
       await browserContext.loginAs(user)
       const page = await browserContext.visit(
@@ -208,38 +187,48 @@ if (process.env.EDITORIAL_DB_TESTS === '1') {
       ])
       await page.getByRole('button', { name: 'Images & crédits' }).click()
       const proposal = await service.get(actor, created.proposal_id)
-      for (const item of proposal.content.items) {
+      const imageBytes = await sharp({
+        create: { width: 160, height: 160, channels: 3, background: '#caff38' },
+      })
+        .png()
+        .toBuffer()
+      await page.route(provenance.url, (route) =>
+        route.fulfill({ body: imageBytes, contentType: 'image/png' })
+      )
+      assert.equal(await page.getByLabel('Licence', { exact: true }).count(), 0)
+      assert.equal(await page.getByLabel('Image depuis le PC').count(), 0)
+      for (const [index, item] of proposal.content.items.entries()) {
         await page.getByRole('combobox', { name: /^Élément/ }).selectOption(item.id)
-        await page.getByLabel('URL de l’image', { exact: true }).fill(provenance.url)
-        await page.getByLabel('Crédit', { exact: true }).fill(provenance.credit)
-        await page.getByLabel('Lien vers la licence ou l’autorisation').fill(provenance.license_url)
+        if (index === 0) {
+          await page.getByLabel('URL de l’image', { exact: true }).fill(provenance.url)
+        } else {
+          await page.getByRole('button', { name: 'Importer depuis le PC', exact: true }).click()
+          await page
+            .getByLabel('Image depuis le PC')
+            .setInputFiles({ name: 'photo.png', mimeType: 'image/png', buffer: imageBytes })
+          await page.getByLabel('Crédit (facultatif)', { exact: true }).fill(provenance.credit)
+        }
         await Promise.all([
           page.waitForResponse(
             (response) =>
-              response.request().method() === 'POST' && response.url().endsWith('/import')
+              response.request().method() === 'POST' && response.url().endsWith('/image')
           ),
-          page.getByRole('button', { name: 'Lancer l’import', exact: true }).click(),
+          page.getByRole('button', { name: 'Enregistrer l’image', exact: true }).click(),
         ])
-        await page.getByText('En attente de traitement', { exact: false }).first().waitFor()
+        await page.getByRole('button', { name: 'Enregistrer l’image', exact: true }).waitFor()
       }
-      await Promise.all([worker.workOne(), worker.workOne()])
-      await page.getByText('Import échoué', { exact: false }).waitFor()
-      await page.getByText('Serveur image temporairement indisponible.', { exact: true }).waitFor()
-      await Promise.all([
-        page.waitForResponse(
-          (response) => response.request().method() === 'POST' && response.url().endsWith('/retry')
-        ),
-        page.getByRole('button', { name: 'Réessayer l’import', exact: true }).click(),
-      ])
-      const retried = await db
-        .from('editorial_jobs')
-        .where('kind', 'image')
-        .where('status', 'queued')
+      const saved = await service.get(actor, created.proposal_id)
+      const linked = await db
+        .from('editorial_media')
+        .where('id', saved.content.items[0].media_id)
         .first()
-      assert.isNull(retried.error)
-      assert.equal(retried.attempts, 0)
-      await worker.workOne()
-      await page.getByText('Image importée', { exact: false }).nth(1).waitFor()
+      assert.equal(linked.path, '')
+      assert.equal(linked.provenance.credit, '')
+      assert.equal(
+        await page.locator('.editorial-preview img').first().getAttribute('src'),
+        provenance.url
+      )
+      assert.lengthOf(await db.from('editorial_jobs').where('kind', 'image'), 0)
       await page
         .getByRole('button', { name: 'Soumettre pour examen', exact: true })
         .waitFor({ state: 'visible' })

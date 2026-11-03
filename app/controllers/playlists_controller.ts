@@ -122,7 +122,10 @@ export default class PlaylistsController {
       (item) => /^\/editorial\/media\/([a-f0-9-]{36})$/.exec(item.imageUrl)?.slice(1) || []
     )
     const editorialMedia = editorialMediaIds.length
-      ? await db.from('editorial_media').whereIn('id', editorialMediaIds).select('id', 'provenance')
+      ? await db
+          .from('editorial_media')
+          .whereIn('id', editorialMediaIds)
+          .select('id', 'path', 'provenance')
       : []
     const visitorId = request.cookie('pos_visitor') || string.random(32)
     response.cookie('pos_visitor', visitorId, { httpOnly: true, sameSite: 'lax', maxAge: '1 year' })
@@ -139,7 +142,10 @@ export default class PlaylistsController {
         id: item.id,
         title: item.title,
         description: item.description || undefined,
-        imageUrl: item.imageUrl,
+        imageUrl:
+          editorialMedia.find(
+            (media) => !media.path && item.imageUrl === `/editorial/media/${media.id}`
+          )?.provenance.url || item.imageUrl,
         smashes: item.smashes,
         passes: item.passes,
         imageCredit: editorialMedia.find(

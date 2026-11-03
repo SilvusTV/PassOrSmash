@@ -169,6 +169,8 @@ export default class Proposals {
     for (const mediaId of new Set(
       content.items.flatMap((item) => (item.media_id ? [item.media_id] : []))
     )) {
+      const media = await (trx || db).from('editorial_media').where('id', mediaId).first()
+      if (media && !media.path) continue
       try {
         const file = await stat(app.tmpPath('editorial', `${mediaId}.png`))
         if (!file.isFile() || file.size === 0) blockers.push('Fichier image indisponible.')
