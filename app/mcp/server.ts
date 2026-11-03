@@ -9,7 +9,7 @@ import AdminManagement from '#services/admin/management'
 import { AdminError, playlistEditSchema } from '#services/admin/contracts'
 import Proposals, { audit, idempotent } from '#services/editorial/proposals'
 import EditorialJobs from '#services/editorial/jobs'
-import { getSettings, readiness, scheduleSlots } from '#services/editorial/settings'
+import { getSettings, saveSettings, readiness, scheduleSlots } from '#services/editorial/settings'
 import NewsTopics from '#services/news/topics'
 import {
   type Actor,
@@ -24,6 +24,7 @@ import {
   provenanceSchema,
   requireScope,
   revision,
+  settingsPatchSchema,
 } from '#services/editorial/contracts'
 export function createEditorialServer(actor: Actor) {
   const server = new McpServer({ name: 'passorsmash-editorial', version: '1.0.0' })
@@ -119,7 +120,8 @@ export function createEditorialServer(actor: Actor) {
       const settings = await getSettings()
       const pending = await db
         .from('editorial_proposals')
-        .where({ user_id: actor.userId, status: 'in_review' })
+        .where('user_id', actor.userId)
+        .whereNot('status', 'published')
         .count('* as total')
         .first()
       return {
@@ -323,7 +325,7 @@ export function createEditorialServer(actor: Actor) {
   )
   tool(
     'get_proposal',
-    'Brouillon complet, sources et provenance des médias. Aperçu réservé au tableau de bord.',
+    'Sélection complète, images, révision et lien public. Lire avant de modifier.',
     'editorial:read',
     { proposal_id: id },
     async ({ proposal_id }) => {
@@ -336,7 +338,7 @@ export function createEditorialServer(actor: Actor) {
             .from('editorial_media')
             .where('user_id', actor.userId)
             .whereIn('id', mediaIds)
-            .select('id', 'width', 'height', 'provenance')
+            .select('id', 'path', 'width', 'height', 'provenance')
         : []
       return {
         id: proposal.id,
@@ -345,6 +347,7 @@ export function createEditorialServer(actor: Actor) {
         content: proposal.content,
         media,
         preview_url: proposal.preview_url,
+        public_url: proposal.public_url,
       }
     },
     true
@@ -410,16 +413,19 @@ export function createEditorialServer(actor: Actor) {
   )
   tool(
     'create_proposal',
-    'Crée un brouillon privé. Aucune publication ni approbation.',
+    'Crée une sélection avec ses éléments, URL d’image et crédits facultatifs. publish=true la publie directement, sinon elle reste en brouillon.',
     'editorial:write',
-    { content: contentSchema, idempotency_key: key },
-    async ({ content, idempotency_key }) => proposals.create(actor, content, idempotency_key),
+    { content: contentSchema, publish: z.boolean().default(false), idempotency_key: key },
+    async ({ content, publish, idempotency_key }) => {
+      const created = await proposals.create(actor, content, idempotency_key)
+      return publish ? proposals.publish(actor, created.proposal_id, created.revision) : created
+    },
     false,
     true
   )
   tool(
     'update_proposal',
-    'Remplace les champs éditoriaux fournis dans un brouillon à la révision attendue.',
+    'Modifie les champs fournis à la révision attendue. Si la sélection est en ligne, la mise à jour est immédiate.',
     'editorial:write',
     { ...proposalInput, fields: contentPatchSchema },
     async ({ proposal_id, expected_revision, fields }) =>
@@ -501,32 +507,121 @@ export function createEditorialServer(actor: Actor) {
   )
   tool(
     'import_proposal_image',
-    'Planifie un import HTTPS protégé avec crédit facultatif ; aucune image publique avant validation.',
+    'Associe directement une URL d’image à un élément, sans téléchargement. Crédit facultatif. Pour un fichier ou retirer une image, utiliser set_proposal_image.',
     'editorial:write',
     { ...proposalInput, item_id: id, provenance: provenanceSchema, idempotency_key: key },
-    async ({ idempotency_key, ...input }) => {
-      return jobs.enqueue(actor, 'image', input, idempotency_key)
-    },
+    async ({ idempotency_key, proposal_id, expected_revision, item_id, provenance }) =>
+      idempotent(
+        actor,
+        'link_proposal_image',
+        idempotency_key,
+        { proposal_id, expected_revision, item_id, provenance },
+        (trx) =>
+          proposals.setImage(
+            actor,
+            proposal_id,
+            expected_revision,
+            item_id,
+            { url: provenance.url, credit: provenance.credit },
+            trx
+          )
+      ),
     false,
     true
   )
   tool(
+    'save_proposal',
+    'Enregistre tout le contenu en une action : titre, descriptions, catégorie et liste des éléments dans leur ordre final. Conserver les IDs existants ; sans ID, un élément est ajouté. Les sources et crédits sont facultatifs. publish=true enregistre et publie atomiquement. Sur une sélection en ligne, les changements sont publiés immédiatement.',
+    'editorial:write',
+    { ...proposalInput, content: contentSchema, publish: z.boolean().default(false) },
+    async ({ proposal_id, expected_revision, content, publish }) =>
+      db.transaction(async (trx) => {
+        const saved = await proposals.mutate(
+          actor,
+          proposal_id,
+          expected_revision,
+          'save',
+          () => content,
+          trx
+        )
+        return publish ? proposals.publish(actor, proposal_id, saved.revision, trx) : saved
+      })
+  )
+  tool(
+    'set_proposal_image',
+    'Définit l’image d’un élément : url pour un lien direct (sans téléchargement), ou data_base64 pour importer un fichier JPG/PNG/WebP/GIF de 8 Mo maximum. Sans les deux, retire l’image. Crédit facultatif.',
+    'editorial:write',
+    {
+      ...proposalInput,
+      item_id: id,
+      url: z
+        .url({ protocol: /^https?$/ })
+        .max(2048)
+        .optional(),
+      data_base64: z.string().min(1).max(11_184_812).optional(),
+      credit: z.string().trim().max(500).optional(),
+    },
+    async ({ proposal_id, expected_revision, item_id, ...image }) => {
+      if (image.url && image.data_base64)
+        throw new EditorialError('VALIDATION_FAILED', 'Choisissez un lien ou un fichier.')
+      return proposals.setImage(actor, proposal_id, expected_revision, item_id, image)
+    }
+  )
+  tool(
+    'publish_proposal',
+    'Publie directement une sélection. Seuls un titre, deux éléments et leurs images sont nécessaires ; aucune revue ni source obligatoire.',
+    'editorial:write',
+    proposalInput,
+    async ({ proposal_id, expected_revision }) =>
+      proposals.publish(actor, proposal_id, expected_revision),
+    false,
+    true
+  )
+  tool(
+    'unpublish_proposal',
+    'Retire une sélection du site et la repasse en brouillon pour la modifier. Conserve la playlist, son lien et ses votes.',
+    'editorial:write',
+    proposalInput,
+    async ({ proposal_id, expected_revision }) =>
+      proposals.unpublish(actor, proposal_id, expected_revision)
+  )
+  tool(
+    'delete_proposal',
+    'Supprime définitivement une sélection et sa playlist éventuelle, y compris ses votes. Demander uniquement pour une suppression souhaitée.',
+    'editorial:write',
+    proposalInput,
+    async ({ proposal_id, expected_revision }) =>
+      proposals.remove(actor, proposal_id, expected_revision)
+  )
+  tool(
+    'retry_editorial_job',
+    'Relance une tâche échouée appartenant au compte connecté.',
+    'editorial:write',
+    { job_id: id },
+    async ({ job_id }) => jobs.retry(actor, job_id)
+  )
+  tool(
+    'update_editorial_settings',
+    'Modifie les réglages fournis de la préparation automatique. Aucun changement nécessaire pour créer ou publier manuellement.',
+    'editorial:write',
+    { fields: settingsPatchSchema },
+    async ({ fields }) => {
+      const current = await getSettings()
+      const saved = await saveSettings({
+        ...current,
+        ...fields,
+        automation_user_id: fields.automation_user_id ?? current.automation_user_id ?? actor.userId,
+      })
+      return { ...saved, notification_label: undefined }
+    }
+  )
+  tool(
     'validate_proposal',
-    'Contrôles automatiques et blocages ; ne vaut jamais approbation humaine.',
+    'Indique uniquement les éléments nécessaires à la publication : au moins deux éléments et une image pour chacun.',
     'editorial:read',
     proposalInput,
     async ({ proposal_id, expected_revision }) =>
       proposals.validate(actor, proposal_id, expected_revision),
-    true
-  )
-  tool(
-    'submit_proposal_for_review',
-    'Valide puis fige le brouillon pour examen humain et planifie une notification. Ne publie rien.',
-    'editorial:write',
-    { ...proposalInput, idempotency_key: key },
-    async ({ proposal_id, expected_revision, idempotency_key }) =>
-      proposals.submit(actor, proposal_id, expected_revision, idempotency_key),
-    false,
     true
   )
   tool(
@@ -535,7 +630,9 @@ export function createEditorialServer(actor: Actor) {
     'editorial:read',
     {
       ...pageSchema,
-      status: z.enum(['queued', 'running', 'succeeded', 'no_topic', 'failed']).optional(),
+      status: z
+        .enum(['queued', 'running', 'succeeded', 'no_topic', 'failed', 'cancelled'])
+        .optional(),
       from: z.iso.datetime({ offset: true }).optional(),
       to: z.iso.datetime({ offset: true }).optional(),
     },

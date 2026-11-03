@@ -1,138 +1,47 @@
 /* eslint-disable @adonisjs/prefer-adonisjs-inertia-link */
-import { Head, Link, router, usePoll } from '@inertiajs/react'
-import { useEffect, useState } from 'react'
+import { Head, Link, router } from '@inertiajs/react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import type { Content, Item, Proposal } from '~/editorial_types'
-import PublicPlaylist from '../playlists/show'
 import { AdminNav } from '~/components/admin'
+import PublicPlaylist from '../playlists/show'
 
-type ImageJob = {
-  id: string
-  status: string
-  attempts: number
-  error?: { message: string }
-  input: { item_id: string }
-}
-type Media = {
-  id: string
-  path: string
-  provenance: { url?: string; credit: string; license?: string; license_url?: string }
-}
-export default function EditorialShow({
-  proposal,
-  validation,
-  media,
-  jobs,
-}: {
-  proposal: Proposal
-  validation: { blockers: string[]; warnings: string[] }
-  media: Media[]
-  jobs: ImageJob[]
-}) {
-  const [tab, setTab] = useState('content')
-  return (
-    <EditorialEditor
-      key={proposal.id}
-      proposal={proposal}
-      validation={validation}
-      media={media}
-      jobs={jobs}
-      tab={tab}
-      setTab={setTab}
-    />
-  )
-}
-function contentKey(content: Content) {
-  return JSON.stringify([
-    content.title,
-    content.description,
-    content.category,
-    content.checks,
-    content.items.map((item) => [
-      item.id,
-      item.title,
-      item.description,
-      item.media_id,
-      item.source_urls,
-    ]),
-    content.sources.map((source) => [
-      source.title,
-      source.url,
-      source.published_at,
-      source.retrieved_at,
-    ]),
-  ])
-}
-function cleanEditorialContent(content: Content): Content {
+type Media = { id: string; path: string; provenance: { url?: string; credit?: string } }
+function initialContent(proposal: Proposal, media: Media[]): Content {
   return {
-    ...content,
-    checks: content.checks.map((line) => line.trim()).filter(Boolean),
-    items: content.items.map((item) => ({
-      ...item,
-      source_urls: item.source_urls.map((url) => url.trim()).filter(Boolean),
-    })),
+    ...proposal.content,
+    items: proposal.content.items.map((item) => {
+      const image = media.find((entry) => entry.id === item.media_id)
+      return { ...item, image_credit: item.image_credit ?? image?.provenance.credit ?? '' }
+    }),
   }
 }
-function EditorialEditor({
-  proposal,
-  validation,
-  media,
-  jobs,
-  tab,
-  setTab,
-}: {
-  proposal: Proposal
-  validation: { blockers: string[]; warnings: string[] }
-  media: Media[]
-  jobs: ImageJob[]
-  tab: string
-  setTab: (value: string) => void
-}) {
-  const [content, setContent] = useState<Content>(proposal.content)
-  const [base, setBase] = useState(proposal)
-  if (base.revision !== proposal.revision || base.status !== proposal.status) {
-    setBase(proposal)
-    if (
-      contentKey(content) === contentKey(base.content) ||
-      contentKey(cleanEditorialContent(content)) === contentKey(proposal.content)
-    )
-      setContent(proposal.content)
-    else if (proposal.status === 'draft') {
-      // Keep unsaved text after a conflict, while retaining images applied by the worker.
-      setContent({
-        ...content,
-        items: content.items.map((item) => ({
-          ...item,
-          media_id: proposal.content.items.find((current) => current.id === item.id)?.media_id,
-        })),
-      })
-    } else setContent(proposal.content)
-  }
-  const [imageItem, setImageItem] = useState('')
-  const [imageUrl, setImageUrl] = useState('')
-  const [credit, setCredit] = useState('')
-  const [imageMode, setImageMode] = useState<'link' | 'upload'>('link')
-  const [imageFile, setImageFile] = useState<File | null>(null)
+export default function EditorialShow(props: { proposal: Proposal; media: Media[] }) {
+  return <Editor key={props.proposal.id} {...props} />
+}
+function Editor({ proposal, media }: { proposal: Proposal; media: Media[] }) {
+  const [content, setContent] = useState(() => initialContent(proposal, media))
+  const [files, setFiles] = useState<Record<string, File>>({})
+  const [previews, setPreviews] = useState<Record<string, string>>({})
   const [busy, setBusy] = useState(false)
-  const draft = proposal.status === 'draft'
-  const dirty = contentKey(content) !== contentKey(proposal.content)
-  const pending = jobs.some((job) => ['queued', 'running'].includes(job.status))
-  const { start, stop } = usePoll(3000, {}, { autoStart: false })
+  const [preview, setPreview] = useState(false)
+  const [error, setError] = useState('')
+  const published = proposal.status === 'published'
+  const dirty =
+    JSON.stringify(content) !== JSON.stringify(initialContent(proposal, media)) ||
+    Object.keys(files).length > 0
+  const previewUrls = useRef(new Set<string>())
   useEffect(() => {
-    if (pending && !dirty && !busy) start()
-    else stop()
-    return stop
-  }, [pending, dirty, busy, start, stop])
+    const urls = previewUrls.current
+    return () => urls.forEach((url) => URL.revokeObjectURL(url))
+  }, [])
   useEffect(() => {
     if (!dirty) return
-    const warn = (event: BeforeUnloadEvent) => {
-      event.preventDefault()
-    }
+    const warn = (event: BeforeUnloadEvent) => event.preventDefault()
     window.addEventListener('beforeunload', warn)
     const off = router.on('before', (event) => {
       if (
         event.detail.visit.method === 'get' &&
-        event.detail.visit.url.pathname !== window.location.pathname &&
-        !window.confirm('Quitter cette sélection sans enregistrer vos modifications ?')
+        !window.confirm('Quitter sans enregistrer les modifications ?')
       )
         event.preventDefault()
     })
@@ -141,566 +50,363 @@ function EditorialEditor({
       off()
     }
   }, [dirty])
-  const labels: Record<string, string> = {
-    draft: 'Brouillon',
-    in_review: 'À examiner',
-    rejected: 'À reprendre',
-    published: 'Publiée',
+  const update = (index: number, fields: Partial<Item>) =>
+    setContent((current) => ({
+      ...current,
+      items: current.items.map((item, i) => (i === index ? { ...item, ...fields } : item)),
+    }))
+  const imageSrc = (item: Item) => {
+    if (previews[item.id!]) return previews[item.id!]
+    if (item.image_url) return item.image_url
+    const image = media.find((entry) => entry.id === item.media_id)
+    return image ? (image.path ? `/editorial/media/${image.id}` : image.provenance.url) : undefined
   }
-  const post = (action: string, data = {}) => {
+  const clearFile = (id: string) => {
+    const url = previews[id]
+    if (url) {
+      URL.revokeObjectURL(url)
+      previewUrls.current.delete(url)
+    }
+    setFiles((current) => Object.fromEntries(Object.entries(current).filter(([key]) => key !== id)))
+    setPreviews((current) =>
+      Object.fromEntries(Object.entries(current).filter(([key]) => key !== id))
+    )
+  }
+  const save = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
     if (busy) return
+    const publish =
+      published || (event.nativeEvent as SubmitEvent).submitter?.getAttribute('value') === 'publish'
+    if (publish && (content.items.length < 2 || content.items.some((item) => !imageSrc(item)))) {
+      setError('Ajoutez au moins deux éléments, avec une image pour chacun.')
+      return
+    }
+    setError('')
     setBusy(true)
     router.post(
-      `/admin/editorial/proposals/${proposal.id}/${action}`,
-      { expected_revision: proposal.revision, idempotency_key: crypto.randomUUID(), ...data },
+      `/admin/editorial/proposals/${proposal.id}/${publish ? 'save_publish' : 'save'}`,
+      {
+        expected_revision: proposal.revision,
+        content: JSON.stringify(content),
+        ...Object.fromEntries(Object.entries(files).map(([id, file]) => [`image_${id}`, file])),
+      },
+      {
+        onSuccess: (page) => {
+          if (page.flash?.error) return
+          const saved = page.props as unknown as { proposal: Proposal; media: Media[] }
+          setContent(initialContent(saved.proposal, saved.media))
+          setFiles({})
+          setPreviews({})
+          previewUrls.current.forEach((url) => URL.revokeObjectURL(url))
+          previewUrls.current.clear()
+        },
+        onFinish: () => setBusy(false),
+      }
+    )
+  }
+  const action = (name: string) => {
+    if (busy) return
+    if (name === 'delete' && !window.confirm('Supprimer cette sélection ?')) return
+    setBusy(true)
+    router.post(
+      `/admin/editorial/proposals/${proposal.id}/${name}`,
+      { expected_revision: proposal.revision },
       { onFinish: () => setBusy(false) }
     )
   }
-  const imageSrc = (mediaId: string) => {
-    const image = media.find((entry) => entry.id === mediaId)
-    return image && !image.path ? image.provenance.url : `/editorial/media/${mediaId}`
+  const move = (index: number, direction: number) => {
+    const items = [...content.items]
+    ;[items[index], items[index + direction]] = [items[index + direction], items[index]]
+    setContent({ ...content, items })
   }
-  const updateItem = (index: number, fields: Partial<Item>) =>
-    setContent({
-      ...content,
-      items: content.items.map((item, i) => (i === index ? { ...item, ...fields } : item)),
-    })
   return (
     <>
       <Head title={proposal.content.title}>
         <meta name="robots" content="noindex, nofollow" />
       </Head>
-      <div className="studio-shell">
-        <section className="studio-hero studio-hero-compact">
+      <div className="edito-shell">
+        <AdminNav />
+        <Link href="/admin/editorial" className="edito-back">
+          ← Toutes les sélections
+        </Link>
+        <header className="edito-heading">
           <div>
-            <Link href="/admin/editorial">← Studio éditorial</Link>
+            <span className={`studio-badge ${published ? 'published' : 'draft'}`}>
+              {published ? 'En ligne' : 'Brouillon'}
+            </span>
             <h1>{proposal.content.title}</h1>
-            <p>
-              <span className={`studio-badge ${proposal.status}`}>{labels[proposal.status]}</span> ·
-              version {proposal.revision}
-            </p>
           </div>
-        </section>
-        <div className="editorial-layout">
-          <AdminNav />
-          <nav className="studio-tabs" aria-label="Sections de la sélection">
-            {[
-              ['content', '01', 'Contenu'],
-              ['images', '02', 'Images & crédits'],
-              ['preview', '03', 'Aperçu du jeu'],
-            ].map(([value, number, label]) => (
-              <button
-                key={value}
-                type="button"
-                aria-pressed={tab === value}
-                onClick={() => setTab(value)}
-              >
-                <small aria-hidden="true">{number}</small>
-                {label}
-              </button>
-            ))}
-          </nav>
-          {tab === 'preview' && !proposal.content.items.every((item) => item.media_id) && (
-            <div className="studio-notice">
-              Ajoutez une image à chaque élément pour essayer le jeu. Les images déjà enregistrées
-              restent visibles ci-dessous.
-            </div>
-          )}
-          {tab === 'preview' &&
-            proposal.content.items.length > 0 &&
-            proposal.content.items.every((item) => item.media_id) && (
-              <section className="editorial-panel">
-                <h2>Aperçu du jeu</h2>
-                <p>Les votes de cet aperçu sont simulés et ne sont pas enregistrés.</p>
-                <PublicPlaylist
-                  key={proposal.revision}
-                  preview
-                  canEdit={false}
-                  playlist={{
-                    slug: 'apercu',
-                    title: proposal.content.title,
-                    description: proposal.content.description,
-                    accent: 'lime',
-                    isPublic: false,
-                  }}
-                  items={proposal.content.items.map((item, index) => ({
-                    id: index + 1,
-                    title: item.title,
-                    description: item.description,
-                    imageUrl: imageSrc(item.media_id!)!,
-                    smashes: 0,
-                    passes: 0,
-                    imageCredit: media.find((entry) => entry.id === item.media_id)?.provenance,
-                  }))}
-                />
-              </section>
-            )}
-          <section className="editorial-panel">
-            <span className="eyebrow">Avant de publier</span>
-            <h2>Prête à être partagée ?</h2>
-            {validation.blockers.length ? (
-              <details className="studio-checks">
-                <summary>{validation.blockers.length} point(s) à corriger</summary>
-                <ul>
-                  {validation.blockers.map((blocker, index) => (
-                    <li key={index}>{blocker}</li>
-                  ))}
-                </ul>
-              </details>
-            ) : (
-              <p>Les contrôles automatiques sont satisfaits.</p>
-            )}
-            {validation.warnings.map((warning) => (
-              <p key={warning}>{warning}</p>
-            ))}
-            {dirty && (
-              <p role="status">
-                Des modifications ne sont pas enregistrées. Enregistrez-les pour actualiser les
-                contrôles et l’aperçu.
-              </p>
-            )}
-            <div className="editorial-actions">
-              {draft && (
-                <>
-                  <button
-                    className="button"
-                    disabled={busy || !dirty}
-                    type="submit"
-                    form="editorial-content"
-                    onClick={() => setTab('content')}
-                  >
-                    Enregistrer
-                  </button>
-                  <button
-                    className="button button-primary"
-                    disabled={busy || dirty || validation.blockers.length > 0}
-                    onClick={() => post('submit')}
-                  >
-                    Soumettre pour examen
-                  </button>
-                </>
-              )}
-              {proposal.status === 'in_review' && (
-                <>
-                  <button
-                    className="button button-primary"
-                    disabled={busy || validation.blockers.length > 0}
-                    onClick={() => post('publish')}
-                  >
-                    Approuver et publier la version {proposal.revision}
-                  </button>
-                  <button className="button" disabled={busy} onClick={() => post('reject')}>
-                    Refuser
-                  </button>
-                </>
-              )}
-              {['in_review', 'rejected'].includes(proposal.status) && (
-                <button className="button" disabled={busy} onClick={() => post('reopen')}>
-                  Rouvrir pour modification
+          <div className="editorial-actions">
+            <button type="button" className="button" onClick={() => setPreview(!preview)}>
+              {preview ? 'Fermer l’aperçu' : 'Aperçu'}
+            </button>
+            {published && (
+              <>
+                {proposal.public_url && (
+                  <a className="button" href={proposal.public_url} target="_blank" rel="noreferrer">
+                    Voir sur le site ↗
+                  </a>
+                )}
+                <button
+                  type="button"
+                  className="button"
+                  disabled={busy}
+                  onClick={() => action('unpublish')}
+                >
+                  Retirer du site
                 </button>
-              )}
-            </div>
-          </section>
-          <section className="editorial-panel" hidden={tab !== 'content'}>
-            <span className="eyebrow">La matière première</span>
-            <h2>Composez votre sélection.</h2>
-            <form
-              id="editorial-content"
-              onSubmit={(event) => {
-                event.preventDefault()
-                post('save', { content: JSON.stringify(cleanEditorialContent(content)) })
-              }}
+              </>
+            )}
+            {!published && (
+              <button type="submit" form="edito-form" className="button" disabled={busy || !dirty}>
+                Enregistrer
+              </button>
+            )}
+            <button
+              type="submit"
+              form="edito-form"
+              value="publish"
+              className="button button-primary"
+              disabled={busy || (published && !dirty)}
             >
-              <fieldset disabled={!draft || busy}>
-                <label>
-                  Titre
-                  <input
-                    maxLength={120}
-                    minLength={3}
-                    required
-                    value={content.title}
-                    onChange={(event) => setContent({ ...content, title: event.target.value })}
-                  />
-                </label>
-                <label>
-                  Description
-                  <textarea
-                    aria-label="Description de la sélection"
-                    maxLength={600}
-                    value={content.description}
-                    onChange={(event) =>
-                      setContent({ ...content, description: event.target.value })
-                    }
-                  />
-                </label>
-                <label>
-                  Catégorie
-                  <input
-                    maxLength={60}
-                    required
-                    value={content.category}
-                    onChange={(event) => setContent({ ...content, category: event.target.value })}
-                  />
-                </label>
-                {content.items.map((item, index) => (
-                  <article className="editorial-row studio-item" key={item.id || index}>
-                    <div className="studio-item-heading">
-                      <span className="studio-number">{String(index + 1).padStart(2, '0')}</span>
-                      {item.media_id ? (
-                        <img
-                          className="studio-thumbnail"
-                          src={imageSrc(item.media_id)}
-                          alt=""
-                          loading="lazy"
-                        />
-                      ) : (
-                        <span className="studio-image-placeholder">Image à ajouter</span>
-                      )}
-                    </div>
-                    <label>
-                      Titre de l’élément {index + 1}
-                      <input
-                        value={item.title}
-                        required
-                        maxLength={120}
-                        onChange={(event) => updateItem(index, { title: event.target.value })}
-                      />
-                    </label>
-                    <label>
-                      Description
-                      <textarea
-                        aria-label={`Description de l’élément ${index + 1}`}
-                        value={item.description}
-                        maxLength={500}
-                        onChange={(event) => updateItem(index, { description: event.target.value })}
-                      />
-                    </label>
-                    <label>
-                      URLs des sources (une par ligne)
-                      <textarea
-                        aria-label="URLs des sources (une par ligne)"
-                        value={item.source_urls.join('\n')}
-                        onChange={(event) =>
-                          updateItem(index, {
-                            source_urls: event.target.value.split('\n'),
-                          })
-                        }
-                      />
-                    </label>
+              {busy ? 'Enregistrement…' : published ? 'Mettre à jour' : 'Publier'}
+            </button>
+          </div>
+        </header>
+        {error && (
+          <p role="alert" className="studio-error">
+            {error}
+          </p>
+        )}
+        {preview && (
+          <section className="edito-preview editorial-panel">
+            <h2>Aperçu</h2>
+            {content.items.length >= 2 && content.items.every(imageSrc) ? (
+              <PublicPlaylist
+                key={JSON.stringify(content)}
+                preview
+                canEdit={false}
+                playlist={{
+                  slug: 'apercu',
+                  title: content.title,
+                  description: content.description,
+                  accent: 'lime',
+                  isPublic: false,
+                }}
+                items={content.items.map((item, index) => ({
+                  id: index + 1,
+                  title: item.title,
+                  description: item.description,
+                  imageUrl: imageSrc(item)!,
+                  smashes: 0,
+                  passes: 0,
+                  imageCredit: { credit: item.image_credit || '' },
+                }))}
+              />
+            ) : (
+              <p>Ajoutez deux éléments et leurs images pour essayer le jeu.</p>
+            )}
+          </section>
+        )}
+        <form id="edito-form" onSubmit={save} className="edito-form editorial-panel">
+          <fieldset disabled={busy}>
+            <div className="edito-basics">
+              <label>
+                Titre
+                <input
+                  value={content.title}
+                  required
+                  minLength={3}
+                  maxLength={120}
+                  onChange={(event) => setContent({ ...content, title: event.target.value })}
+                />
+              </label>
+              <label>
+                Catégorie
+                <input
+                  value={content.category}
+                  required
+                  maxLength={60}
+                  onChange={(event) => setContent({ ...content, category: event.target.value })}
+                />
+              </label>
+            </div>
+            <label>
+              Description (facultative)
+              <textarea
+                aria-label="Description (facultative)"
+                rows={2}
+                maxLength={600}
+                value={content.description}
+                onChange={(event) => setContent({ ...content, description: event.target.value })}
+              />
+            </label>
+            <div className="edito-section-title">
+              <h2>
+                Éléments <small>{content.items.length}</small>
+              </h2>
+            </div>
+            {content.items.map((item, index) => (
+              <article className="edito-item" key={item.id}>
+                <div className="edito-item-picture">
+                  {imageSrc(item) ? (
+                    <img src={imageSrc(item)} alt={item.title} />
+                  ) : (
+                    <span>Ajouter une image</span>
+                  )}
+                </div>
+                <div className="edito-item-fields">
+                  <div className="edito-item-heading">
+                    <strong>{String(index + 1).padStart(2, '0')}</strong>
                     <div className="editorial-actions">
                       <button
                         type="button"
+                        aria-label={`Monter l’élément ${index + 1}`}
                         disabled={index === 0}
-                        onClick={() => {
-                          const items = [...content.items]
-                          ;[items[index - 1], items[index]] = [items[index], items[index - 1]]
-                          setContent({ ...content, items })
-                        }}
+                        onClick={() => move(index, -1)}
                       >
-                        Monter
+                        ↑
                       </button>
                       <button
                         type="button"
+                        aria-label={`Descendre l’élément ${index + 1}`}
                         disabled={index === content.items.length - 1}
-                        onClick={() => {
-                          const items = [...content.items]
-                          ;[items[index + 1], items[index]] = [items[index], items[index + 1]]
-                          setContent({ ...content, items })
-                        }}
+                        onClick={() => move(index, 1)}
                       >
-                        Descendre
+                        ↓
                       </button>
                       <button
                         type="button"
-                        onClick={() =>
+                        aria-label={`Retirer l’élément ${index + 1}`}
+                        onClick={() => {
+                          clearFile(item.id!)
                           setContent({
                             ...content,
                             items: content.items.filter((_, i) => i !== index),
                           })
-                        }
+                        }}
                       >
                         Retirer
                       </button>
                     </div>
-                  </article>
-                ))}
-                <button
-                  type="button"
-                  onClick={() =>
-                    setContent({
-                      ...content,
-                      items: [
-                        ...content.items,
-                        {
-                          id: crypto.randomUUID(),
-                          title: 'Nouvel élément',
-                          description: '',
-                          source_urls: [],
-                        },
-                      ],
-                    })
-                  }
-                >
-                  Ajouter un élément
-                </button>
-                <h3>Sources</h3>
-                {content.sources.map((source, index) => (
-                  <div className="editorial-row" key={index}>
+                  </div>
+                  <div className="edito-text-fields">
                     <label>
-                      Nom
+                      Titre de l’élément {index + 1}
                       <input
                         required
-                        value={source.title}
-                        onChange={(event) =>
-                          setContent({
-                            ...content,
-                            sources: content.sources.map((value, i) =>
-                              i === index ? { ...value, title: event.target.value } : value
-                            ),
-                          })
-                        }
+                        maxLength={120}
+                        value={item.title}
+                        onChange={(event) => update(index, { title: event.target.value })}
                       />
                     </label>
                     <label>
-                      URL HTTPS
+                      Description de l’élément {index + 1}
+                      <input
+                        maxLength={500}
+                        value={item.description}
+                        onChange={(event) => update(index, { description: event.target.value })}
+                      />
+                    </label>
+                  </div>
+                  <div className="edito-image-fields">
+                    <label>
+                      Lien de l’image {index + 1}
                       <input
                         type="url"
-                        required
-                        pattern="https://.*"
-                        value={source.url}
-                        onChange={(event) =>
-                          setContent({
-                            ...content,
-                            sources: content.sources.map((value, i) =>
-                              i === index ? { ...value, url: event.target.value } : value
-                            ),
+                        maxLength={2048}
+                        placeholder="https://…"
+                        value={item.image_url || ''}
+                        onChange={(event) => {
+                          clearFile(item.id!)
+                          update(index, {
+                            image_url: event.target.value || undefined,
+                            media_id: undefined,
                           })
-                        }
+                        }}
                       />
                     </label>
                     <label>
-                      Date de publication (ISO 8601, facultative)
+                      Crédit {index + 1} (facultatif)
                       <input
-                        value={source.published_at || ''}
-                        onChange={(event) =>
-                          setContent({
-                            ...content,
-                            sources: content.sources.map((value, i) =>
-                              i === index
-                                ? { ...value, published_at: event.target.value || undefined }
-                                : value
-                            ),
-                          })
-                        }
+                        maxLength={500}
+                        value={item.image_credit || ''}
+                        onChange={(event) => update(index, { image_credit: event.target.value })}
                       />
                     </label>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setContent({
-                          ...content,
-                          sources: content.sources.filter((_, i) => i !== index),
-                        })
-                      }
-                    >
-                      Retirer la source
-                    </button>
                   </div>
-                ))}
-                <button
-                  type="button"
-                  onClick={() =>
-                    setContent({
-                      ...content,
-                      sources: [
-                        ...content.sources,
-                        { title: '', url: '', retrieved_at: new Date().toISOString() },
-                      ],
-                    })
-                  }
-                >
-                  Ajouter une source
-                </button>
-                <label>
-                  Points à vérifier (un par ligne ; vider après résolution)
-                  <textarea
-                    aria-label="Points à vérifier (un par ligne ; vider après résolution)"
-                    value={content.checks.join('\n')}
-                    onChange={(event) =>
-                      setContent({
-                        ...content,
-                        checks: event.target.value.split('\n'),
-                      })
-                    }
-                  />
-                </label>
-              </fieldset>
-              {draft && (
-                <button className="button button-primary" type="submit" disabled={busy || !dirty}>
-                  Enregistrer le contenu
-                </button>
-              )}
-            </form>
-          </section>
-          {tab === 'images' && draft && (
-            <section className="editorial-panel">
-              <span className="eyebrow">Donnez-leur une image</span>
-              <h2>Images & crédits.</h2>
-              {dirty && <p role="status">Enregistrez le contenu avant d’ajouter une image.</p>}
-              <form
-                className="studio-image-form"
-                onSubmit={(event) => {
-                  event.preventDefault()
-                  if (busy || dirty) return
-                  setBusy(true)
-                  router.post(
-                    `/admin/editorial/proposals/${proposal.id}/image`,
-                    {
-                      expected_revision: proposal.revision,
-                      item_id: imageItem,
-                      credit,
-                      ...(imageMode === 'upload' ? { image: imageFile } : { url: imageUrl }),
-                    },
-                    { onFinish: () => setBusy(false) }
-                  )
-                }}
-              >
-                <label>
-                  Élément
-                  <select
-                    aria-label="Élément"
-                    required
-                    value={imageItem}
-                    onChange={(event) => setImageItem(event.target.value)}
-                  >
-                    <option value="">Choisir</option>
-                    {proposal.content.items.map((item) => (
-                      <option key={item.id} value={item.id}>
-                        {item.title}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                {imageMode === 'link' ? (
-                  <label>
-                    URL de l’image
-                    <input
-                      type="url"
-                      required
-                      pattern="https://.*"
-                      placeholder="https://…"
-                      value={imageUrl}
-                      onChange={(event) => setImageUrl(event.target.value)}
-                    />
-                  </label>
-                ) : (
-                  <label>
-                    Image depuis le PC
-                    <input
-                      type="file"
-                      accept="image/jpeg,image/png,image/webp,image/gif"
-                      required
-                      onChange={(event) => setImageFile(event.target.files?.[0] || null)}
-                    />
-                  </label>
-                )}
-                <label>
-                  Crédit (facultatif)
-                  <input
-                    maxLength={500}
-                    value={credit}
-                    onChange={(event) => setCredit(event.target.value)}
-                  />
-                </label>
-                <div className="editorial-actions studio-image-actions">
-                  <button
-                    className="button"
-                    type="button"
-                    onClick={() => setImageMode(imageMode === 'link' ? 'upload' : 'link')}
-                  >
-                    {imageMode === 'link' ? 'Importer depuis le PC' : 'Utiliser un lien'}
-                  </button>
-                  <button
-                    className="button button-primary"
-                    disabled={busy || dirty || !imageItem}
-                    type="submit"
-                  >
-                    {busy ? 'Enregistrement…' : 'Enregistrer l’image'}
-                  </button>
-                </div>
-              </form>
-            </section>
-          )}
-          {tab === 'images' &&
-            jobs.some((job) => ['queued', 'running', 'failed'].includes(job.status)) && (
-              <section className="editorial-panel">
-                <h2>Suivi des imports.</h2>
-                {dirty && (
-                  <p role="status">Enregistrez vos modifications pour actualiser les imports.</p>
-                )}
-                {!jobs.length && <p>Aucun import lancé pour cette sélection.</p>}
-                {jobs.map((job) => (
-                  <article className="editorial-row" key={job.id}>
-                    <strong>
-                      {proposal.content.items.find((item) => item.id === job.input.item_id)
-                        ?.title || 'Élément retiré'}
-                    </strong>
-                    <span role="status">
-                      {{
-                        queued: 'En attente de traitement',
-                        running: 'Téléchargement et vérification…',
-                        succeeded: 'Image importée',
-                        failed: 'Import échoué',
-                      }[job.status] || job.status}{' '}
-                      · {job.attempts} tentative(s)
-                    </span>
-                    {job.error && <p className="studio-error">{job.error.message}</p>}
-                    {job.status === 'failed' && (
+                  <div className="edito-file-row">
+                    <label className="edito-upload">
+                      Importer depuis le PC
+                      <input
+                        type="file"
+                        aria-label={`Importer une image pour l’élément ${index + 1}`}
+                        accept="image/jpeg,image/png,image/webp,image/gif"
+                        onChange={(event) => {
+                          const file = event.target.files?.[0]
+                          if (!file) return
+                          if (file.size > 8 * 1024 * 1024) {
+                            setError('Image trop volumineuse (8 Mo maximum).')
+                            event.target.value = ''
+                            return
+                          }
+                          setError('')
+                          clearFile(item.id!)
+                          const url = URL.createObjectURL(file)
+                          previewUrls.current.add(url)
+                          setPreviews((current) => ({ ...current, [item.id!]: url }))
+                          setFiles((current) => ({ ...current, [item.id!]: file }))
+                          update(index, { image_url: undefined, media_id: undefined })
+                          event.target.value = ''
+                        }}
+                      />
+                    </label>
+                    {files[item.id!] && <span>{files[item.id!].name}</span>}
+                    {imageSrc(item) && (
                       <button
-                        className="button"
-                        disabled={busy}
-                        onClick={() => router.post(`/admin/editorial/jobs/${job.id}/retry`)}
+                        type="button"
+                        onClick={() => {
+                          clearFile(item.id!)
+                          update(index, { image_url: undefined, media_id: undefined })
+                        }}
                       >
-                        Réessayer l’import
+                        Retirer l’image
                       </button>
                     )}
-                  </article>
-                ))}
-              </section>
-            )}
-          {tab !== 'content' && (
-            <section className="editorial-panel">
-              <h2>Aperçu de la version enregistrée</h2>
-              <h3>{proposal.content.title}</h3>
-              <p>{proposal.content.description}</p>
-              <div className="editorial-preview">
-                {proposal.content.items.map((item, index) => {
-                  const provenance = media.find((image) => image.id === item.media_id)?.provenance
-                  return (
-                    <article key={item.id || index}>
-                      {item.media_id ? (
-                        <img src={imageSrc(item.media_id)} alt={item.title} loading="lazy" />
-                      ) : (
-                        <p>Image manquante</p>
-                      )}
-                      <h3>
-                        {index + 1}. {item.title}
-                      </h3>
-                      <p>{item.description}</p>
-                      {provenance?.credit && <p>Crédit : {provenance.credit}</p>}
-                      {item.source_urls.map((url) => (
-                        <p key={url}>
-                          <a href={url} target="_blank" rel="noreferrer">
-                            Source
-                          </a>
-                        </p>
-                      ))}
-                    </article>
-                  )
-                })}
-              </div>
-            </section>
-          )}
+                  </div>
+                </div>
+              </article>
+            ))}
+            {!content.items.length && <p>Ajoutez les éléments que les joueurs vont comparer.</p>}
+            <button
+              type="button"
+              className="button edito-add"
+              disabled={content.items.length >= 100}
+              onClick={() =>
+                setContent({
+                  ...content,
+                  items: [
+                    ...content.items,
+                    {
+                      id: crypto.randomUUID(),
+                      title: '',
+                      description: '',
+                      source_urls: [],
+                      image_credit: '',
+                    },
+                  ],
+                })
+              }
+            >
+              + Ajouter un élément
+            </button>
+          </fieldset>
+        </form>
+        <div className="edito-footer">
+          <span>{dirty ? 'Modifications non enregistrées' : 'Tout est enregistré'}</span>
+          <button type="button" disabled={busy} onClick={() => action('delete')}>
+            Supprimer la sélection
+          </button>
         </div>
       </div>
     </>

@@ -1,29 +1,13 @@
-# Studio éditorial — recette du 2 novembre 2026
+# Recette de l’édito simplifié
 
-## Changements
+Les tests destructifs de données sont limités à `passorsmash_editorial_test`, avec `EDITORIAL_DB_TESTS=1`. Ne jamais les lancer sur la base du site.
 
-- Refonte du studio et de l’éditeur dans les couleurs et la typographie du site, avec navigation par sections, recherche, filtres, états en français et variantes mobile/clair/sombre.
-- Ouverture immédiate des nouveaux brouillons, sauvegarde depuis les sections contenu et images, conservation des saisies en cas de conflit, garde avant de quitter des modifications non enregistrées.
-- Saisie multiligne conservée pendant l’édition ; nettoyage des lignes vides à l’enregistrement.
-- Suivi et actualisation des imports dans la proposition, affichage des erreurs et relance des tâches échouées.
-- Résolution DNS asynchrone avec délai maximal, cache et regroupement des demandes simultanées. Connexions épinglées aux adresses publiques validées ; jusqu’à trois redirections HTTPS revérifiées pour les images.
-- Imports simultanés sur des éléments distincts sans conflit global de révision. Deux remplacements concurrents de la même image ne s’écrasent pas silencieusement.
-- Outil MCP `create_playlist` privé par défaut et idempotent. Édition vérifiée via `get_playlist` / `update_playlist`, avec conservation des identifiants et votes, contrôle du propriétaire et refus des révisions obsolètes.
+- `node ace test unit --files tests/unit/editorial.spec.ts` : schémas minimaux, crédits facultatifs, mises à jour partielles sans réinitialisation et découverte MCP suivant les droits.
+- `node ace test functional --files tests/functional/editorial.spec.ts` : parcours MCP complet avec le SDK réel, publication directe sans sources ni revue, images par lien/fichier, mise à jour en ligne, retrait et republication sans perte de votes, réglages, relance et suppression ; propriété des données et transactions.
+- `node ace test browser --files tests/browser/editorial_workflow.spec.ts` : liste simple, formulaire unique, images dans chaque élément, import PC avec crédit vide, aperçu, publication, retrait, modification, republication, suppression, réglages repliés, conservation du texte après conflit et affichage mobile.
+- `node ace test browser --files tests/browser/editorial.spec.ts` : accès administrateur et refus des comptes ordinaires.
+- `node ace test browser --files tests/browser/oauth.spec.ts` : connexion Discord, consentement, découverte des 27 outils, renouvellement et révocation.
 
-## Vérifications
+Vérifier aussi `npm run typecheck`, le lint des fichiers modifiés et `npm run build`. Les scénarios automatisés utilisent des images et fournisseurs de test. Le branchement au client MCP déployé et aux fournisseurs de production reste une vérification de déploiement.
 
-La suite générale a réussi : **63 tests**, dont 12 unitaires, 28 d’intégration et 23 navigateur. Exécution sous Node.js 24 avec PostgreSQL sur la base jetable `passorsmash_editorial_test` et stockage S3 local.
-
-Les parcours couvrent notamment la création, les réglages, les filtres, les sources multiligne, le réordonnancement, une sauvegarde en conflit, les imports parallèles, un échec d’import suivi d’une relance, l’actualisation automatique, l’aperçu, la soumission, le refus, la réouverture et la publication. Les contrôles MCP passent par le SDK réel ; les fournisseurs de génération et de médias des scénarios sont simulés.
-
-Deux téléchargements HTTPS réels ont également été vérifiés : Wikimedia (118 ms) et Unsplash (84 ms), avec décodage des images reçues. Ces mesures sont locales et ne mesurent pas les performances du serveur de production.
-
-Captures de contrôle dans `tmp/` : `editorial-admin-desktop.png`, `editorial-proposal-mobile.png`, `studio-images-desktop.png`, `studio-preview-mobile.png` et `studio-connections-dark-mobile.png`.
-
-## Mise en service
-
-Les changements sont locaux et doivent être déployés pour modifier le site en ligne. Aucune nouvelle migration ni dépendance n’est nécessaire.
-
-Le connecteur actif a confirmé uniquement `editorial:read`. Après déploiement, le reconnecter en demandant `editorial:read editorial:write`, puis actualiser sa liste d’outils. Ajouter `editorial:generate` pour la génération. Les autorisations existantes ne sont pas augmentées silencieusement.
-
-La préparation automatique du serveur connecté reste désactivée : sources JSON Feed, compte de préparation, fournisseur de génération et notification ne sont pas configurés. Le studio signale cette configuration manquante ; les sélections manuelles restent utilisables.
+Recette du 3 novembre 2026 : 7 tests unitaires, 16 tests fonctionnels, 3 tests navigateur de l’édito et 11 tests OAuth réussis sur une base PostgreSQL jetable. La migration a également été appliquée à une sélection au format précédent : identité des éléments et compteurs de votes conservés. Les captures ordinateur et mobile ont été contrôlées.

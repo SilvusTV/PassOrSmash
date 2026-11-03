@@ -87,7 +87,7 @@ Les enregistrements expirés ne sont plus acceptés. Une purge de maintenance pe
 - Une connexion administrateur doit afficher le consentement, retourner au client et exposer les outils selon ses droits.
 - Un refus, un compte sans droits, une preuve PKCE invalide, un code rejoué, un jeton expiré ou une audience différente doivent échouer.
 - Après révocation dans le studio, le même jeton doit être refusé.
-- Les propositions passent par l’examen humain du studio. Les outils `create_playlist` et `update_playlist` agissent directement sur les playlists du compte ; leur champ `visibility: public` les rend immédiatement publiques.
+- Les sélections peuvent être créées, modifiées, publiées, retirées du site et supprimées par le MCP avec la portée d’écriture. Les outils `create_playlist` et `update_playlist` agissent directement sur les playlists du compte ; leur champ `visibility: public` les rend immédiatement publiques.
 
 ## Création et édition des playlists
 
@@ -97,7 +97,7 @@ Reconnecter les anciennes connexions limitées à `editorial:read` en demandant 
 - `get_playlist` : lire `edit.revision` et les identifiants des éléments avant modification.
 - `update_playlist` : fournir `expected_revision`, le contenu complet et les IDs conservés dans l’ordre final. Les éléments conservés gardent leurs votes. Une modification concurrente est refusée. Les playlists d’un autre compte restent en lecture seule, même pour un administrateur connecté au MCP.
 
-Le serveur expose 9 outils en lecture seule et 21 outils avec les trois portées. Aucun outil ne permet d’approuver ou publier une proposition éditoriale.
+Le serveur expose 9 outils en lecture seule et 27 outils avec les trois portées. `publish_proposal` publie directement ; `save_proposal` enregistre tout le contenu et peut publier en une action.
 
 Les tests automatisés utilisent Chromium, PostgreSQL et un client OAuth avec récepteur HTTP local. Discord est simulé pour tester le retour de connexion sans utiliser de vrais identifiants ni appeler son API. Le dernier essai avec votre compte Discord et le client final doit être effectué après déploiement.
 

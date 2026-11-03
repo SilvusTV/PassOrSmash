@@ -27,10 +27,11 @@ const bodyParserConfig = defineConfig({
    * Config for the JSON parser.
    */
   json: {
+    limit: '12mb',
     /**
-     * Normalize empty string values to null.
+     * Preserve empty optional descriptions and image credits, including MCP arguments.
      */
-    convertEmptyStringsToNull: true,
+    convertEmptyStringsToNull: false,
 
     /**
      * Content types handled by the JSON parser.

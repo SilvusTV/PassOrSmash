@@ -292,6 +292,7 @@ export class PlaylistItemSchema extends BaseModel {
   static $columns = [
     'createdAt',
     'description',
+    'editorialItemId',
     'id',
     'imageUrl',
     'passes',
@@ -306,6 +307,8 @@ export class PlaylistItemSchema extends BaseModel {
   declare createdAt: DateTime
   @column()
   declare description: string | null
+  @column()
+  declare editorialItemId: string | null
   @column({ isPrimary: true })
   declare id: number
   @column()

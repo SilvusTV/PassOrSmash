@@ -12,7 +12,6 @@ import { getSettings, saveSettings, readiness, scheduleSlots } from '#services/e
 import { dashboardActor, isEditorialAdmin } from '#services/editorial/access'
 import {
   EditorialError,
-  assertDraft,
   assertRevision,
   contentSchema,
   id,
@@ -27,6 +26,7 @@ export default class EditorialController {
     const settings = await getSettings()
     return inertia.render('editorial/index', {
       externalOAuth: !!env.get('MCP_OAUTH_ISSUER'),
+      mcpUrl: `${env.get('APP_URL').replace(/\/$/, '')}/mcp`,
       settings,
       missing: readiness(settings),
       nextSlot:
@@ -38,7 +38,7 @@ export default class EditorialController {
         .where('user_id', auth.user!.id)
         .orderBy('created_at', 'desc')
         .limit(100)
-        .select('id', 'status', 'revision', 'content', 'created_at'),
+        .select('id', 'status', 'revision', 'content', 'created_at', 'playlist_id'),
       jobs: await db
         .from('editorial_jobs')
         .where('user_id', auth.user!.id)
@@ -53,25 +53,11 @@ export default class EditorialController {
   }
   async show({ params, auth, inertia }: HttpContext) {
     const proposal = await this.proposals.get(dashboardActor(auth.user!), id.parse(params.id))
-    const validation = await this.proposals.validate(
-      dashboardActor(auth.user!),
-      proposal.id,
-      proposal.revision
-    )
     const mediaIds = proposal.content.items.flatMap((item: { media_id?: string }) =>
       item.media_id ? [item.media_id] : []
     )
     return inertia.render('editorial/show', {
       proposal,
-      validation,
-      jobs: await db
-        .from('editorial_jobs')
-        .where('user_id', auth.user!.id)
-        .where('kind', 'image')
-        .whereRaw("input->>'proposal_id' = ?", [proposal.id])
-        .orderBy('created_at', 'desc')
-        .limit(30)
-        .select('id', 'status', 'stage', 'attempts', 'error', 'input', 'created_at'),
       media: mediaIds.length
         ? await db
             .from('editorial_media')
@@ -107,7 +93,11 @@ export default class EditorialController {
   }
   async settings(ctx: HttpContext) {
     return this.perform(ctx, async () => {
-      const settings = await saveSettings(JSON.parse(ctx.request.input('settings')))
+      const input = JSON.parse(ctx.request.input('settings'))
+      const settings = await saveSettings({
+        ...input,
+        automation_user_id: input.automation_user_id || ctx.auth.user!.id,
+      })
       await db.transaction((trx) =>
         audit(trx, dashboardActor(ctx.auth.user!), 'settings', undefined, undefined, {
           enabled: settings.enabled,
@@ -183,27 +173,11 @@ export default class EditorialController {
     )
   }
   async retry(ctx: HttpContext) {
-    return this.perform(ctx, async () => {
-      const updated = await db
-        .from('editorial_jobs')
-        .where({ id: id.parse(ctx.params.id), user_id: ctx.auth.user!.id, status: 'failed' })
-        .update({
-          status: 'queued',
-          stage: 'queued',
-          error: null,
-          attempts: 0,
-          lease_token: null,
-          lease_until: null,
-          available_at: new Date(),
-          updated_at: new Date(),
-        })
-      if (!updated)
-        throw new EditorialError(
-          'NOT_FOUND',
-          'Cette tâche est introuvable ou ne peut pas être relancée.'
-        )
-    })
+    return this.perform(ctx, () =>
+      new EditorialJobs().retry(dashboardActor(ctx.auth.user!), id.parse(ctx.params.id))
+    )
   }
+
   async generate(ctx: HttpContext) {
     return this.perform(ctx, async () => {
       const input = z
@@ -238,15 +212,56 @@ export default class EditorialController {
       const actor = dashboardActor(ctx.auth.user!)
       const proposalId = id.parse(ctx.params.id)
       const expected = revision.parse(
-        ctx.params.action === 'image'
+        ['image', 'save', 'save_publish'].includes(ctx.params.action)
           ? Number(ctx.request.input('expected_revision'))
           : ctx.request.input('expected_revision')
       )
       switch (ctx.params.action) {
         case 'save':
-          return this.proposals.mutate(actor, proposalId, expected, 'update', () =>
-            contentSchema.parse(JSON.parse(ctx.request.input('content')))
-          )
+        case 'save_publish': {
+          const content = contentSchema.parse(JSON.parse(ctx.request.input('content')))
+          return db.transaction(async (trx) => {
+            const proposal = await this.proposals.get(actor, proposalId, trx, true)
+            assertRevision(proposal.revision, expected)
+            for (const item of content.items) {
+              if (!item.id) item.id = randomUUID()
+              const file = ctx.request.file(`image_${item.id}`, {
+                size: '8mb',
+                extnames: ['jpg', 'jpeg', 'png', 'webp', 'gif'],
+              })
+              if (!file) continue
+              if (!file.isValid || !file.tmpPath)
+                throw new EditorialError(
+                  'VALIDATION_FAILED',
+                  `${item.title} : image invalide (8 Mo maximum).`
+                )
+              const image = await new EditorialMedia().upload(
+                actor,
+                await readFile(file.tmpPath),
+                { credit: item.image_credit || '' },
+                trx
+              )
+              item.media_id = image.media_id
+              delete item.image_url
+            }
+            const result = await this.proposals.mutate(
+              actor,
+              proposalId,
+              expected,
+              'update',
+              () => content,
+              trx
+            )
+            return ctx.params.action === 'save_publish'
+              ? this.proposals.publish(actor, proposalId, result.revision, trx)
+              : result
+          })
+        }
+        case 'unpublish':
+          return this.proposals.unpublish(actor, proposalId, expected)
+        case 'delete':
+          await this.proposals.remove(actor, proposalId, expected)
+          return '/admin/editorial'
         case 'submit':
           return this.proposals.submit(
             actor,
@@ -277,7 +292,6 @@ export default class EditorialController {
             // Lock and validate the draft before storing or attaching any media.
             const proposal = await this.proposals.get(actor, proposalId, trx, true)
             assertRevision(proposal.revision, expected)
-            assertDraft(proposal.status)
             if (!proposal.content.items.some((item: { id: string }) => item.id === itemId))
               throw new EditorialError('VALIDATION_FAILED', 'Élément introuvable.')
             const media = new EditorialMedia()

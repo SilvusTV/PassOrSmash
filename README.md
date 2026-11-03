@@ -143,7 +143,7 @@ Les formats acceptés sont JPG, PNG, WebP et GIF, avec une taille maximale de 8 
 
 ## Commandes utiles
 
-Le serveur MCP et le studio de validation éditoriale sont décrits dans [le guide de mise en service](docs/mcp-editorial-mise-en-service.md). L’automatisation reste désactivée tant que les accès, fournisseurs et créneaux ne sont pas configurés.
+L’espace édito permet de créer, modifier et publier directement des sélections, depuis l’interface ou le MCP. Le fonctionnement et les outils sont décrits dans [le guide de mise en service](docs/mcp-editorial-mise-en-service.md). La préparation automatique est facultative et reste désactivée tant que ses accès, fournisseurs et créneaux ne sont pas configurés.
 
 Pour ajouter le MCP avec votre connexion Discord existante, suivre [le guide de connexion MCP avec Discord](docs/mcp-discord-connexion.md). L’autorisation est intégrée au site ; aucun fournisseur OAuth externe n’est nécessaire.
 

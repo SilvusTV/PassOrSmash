@@ -4,6 +4,8 @@ export type Item = {
   title: string
   description: string
   media_id?: string
+  image_url?: string
+  image_credit?: string
   source_urls: string[]
 }
 export type Content = {
@@ -20,6 +22,8 @@ export type Proposal = {
   revision: number
   content: Content
   created_at: string
+  playlist_id?: number | null
+  public_url?: string | null
 }
 export type Settings = {
   enabled: boolean

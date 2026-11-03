@@ -2,7 +2,7 @@ import db from '@adonisjs/lucid/services/db'
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
 import { createHash, randomUUID } from 'node:crypto'
 import Playlist from '#models/playlist'
-import PlaylistItem from '#models/playlist_item'
+import EditorialMedia from './media.js'
 import app from '@adonisjs/core/services/app'
 import { stat } from 'node:fs/promises'
 import {
@@ -86,7 +86,17 @@ export default class Proposals {
     if (lock) query.forUpdate()
     const proposal = await query.first()
     if (!proposal) throw new EditorialError('NOT_FOUND', 'Proposition introuvable.')
-    return { ...proposal, preview_url: `/admin/editorial/proposals/${proposal.id}` }
+    const playlist = proposal.playlist_id
+      ? await (trx || db)
+          .from('playlists')
+          .where({ id: proposal.playlist_id, user_id: actor.userId })
+          .first()
+      : null
+    return {
+      ...proposal,
+      public_url: playlist ? `/p/${playlist.slug}` : null,
+      preview_url: `/admin/editorial/proposals/${proposal.id}`,
+    }
   }
 
   async create(actor: Actor, input: Content, key: string, jobId?: string, leaseToken?: string) {
@@ -134,17 +144,24 @@ export default class Proposals {
     const run = async (trx: Trx) => {
       const proposal = await this.get(actor, proposalId, trx, true)
       assertRevision(proposal.revision, expected)
-      assertDraft(proposal.status)
       const content = contentSchema.parse(edit(proposal.content))
+      content.items = content.items.map((item) => ({ ...item, id: item.id || randomUUID() }))
       await this.checkMediaOwnership(actor, content, trx)
       const revision = proposal.revision + 1
       await trx
         .from('editorial_proposals')
         .where('id', proposalId)
-        .update({ content: JSON.stringify(content), revision, updated_at: new Date() })
+        .update({
+          content: JSON.stringify(content),
+          status: 'draft',
+          revision,
+          updated_at: new Date(),
+        })
       await this.snapshot(trx, proposalId, revision, content)
       await audit(trx, actor, action, proposalId, revision)
-      return { proposal_id: proposalId, revision, status: 'draft' }
+      return proposal.status === 'published'
+        ? this.publish(actor, proposalId, revision, trx)
+        : { proposal_id: proposalId, revision, status: 'draft' }
     }
     return transaction ? run(transaction) : db.transaction(run)
   }
@@ -153,17 +170,13 @@ export default class Proposals {
     const proposal = await this.get(actor, proposalId, trx)
     assertRevision(proposal.revision, expected)
     const content = contentSchema.parse(proposal.content)
-    const blockers = [...content.checks]
+    const blockers: string[] = []
     if (content.items.length < 2) blockers.push('Au moins deux éléments sont nécessaires.')
-    if (!content.sources.length) blockers.push('Au moins une source est nécessaire.')
     const itemIds = content.items.map((item) => item.id)
     if (itemIds.some((itemId) => !itemId) || new Set(itemIds).size !== itemIds.length)
       blockers.push('Identifiants des éléments invalides.')
-    const sources = new Set(content.sources.map((source) => source.url))
     for (const item of content.items) {
-      if (!item.media_id) blockers.push(`${item.title} : image vérifiée manquante.`)
-      if (!item.source_urls.length || item.source_urls.some((url) => !sources.has(url)))
-        blockers.push(`${item.title} : sources manquantes ou non référencées.`)
+      if (!item.media_id && !item.image_url) blockers.push(`${item.title} : ajoutez une image.`)
     }
     await this.checkMediaOwnership(actor, content, trx)
     for (const mediaId of new Set(
@@ -181,9 +194,7 @@ export default class Proposals {
     return {
       valid: blockers.length === 0,
       blockers,
-      warnings: [
-        'Vérifier les faits, la pertinence éditoriale et les droits des images avant publication.',
-      ],
+      warnings: [],
       revision: expected,
     }
   }
@@ -222,41 +233,83 @@ export default class Proposals {
     )
   }
 
-  // This method is deliberately never registered as an MCP tool.
-  async publish(actor: Actor, proposalId: string, expected: number) {
-    if (actor.identity !== `dashboard:${actor.userId}`)
-      throw new EditorialError('FORBIDDEN', 'Validation humaine requise.')
-    return db.transaction(async (trx) => {
+  async publish(actor: Actor, proposalId: string, expected: number, transaction?: Trx) {
+    requireScope(actor, 'editorial:write')
+    const run = async (trx: Trx) => {
       const proposal = await this.get(actor, proposalId, trx, true)
       assertRevision(proposal.revision, expected)
-      if (proposal.status === 'published') return { playlist_id: proposal.playlist_id }
-      if (proposal.status !== 'in_review')
-        throw new EditorialError('INVALID_STATE', 'La proposition doit être soumise pour examen.')
+      if (proposal.status === 'published')
+        return {
+          proposal_id: proposalId,
+          revision: expected,
+          status: 'published',
+          playlist_id: proposal.playlist_id,
+          public_url: proposal.public_url,
+        }
       const validation = await this.validate(actor, proposalId, expected, trx)
       if (!validation.valid)
-        throw new EditorialError('VALIDATION_FAILED', validation.blockers.join('\n'))
+        throw new EditorialError('VALIDATION_FAILED', validation.blockers.join(' '))
       const content: Content = proposal.content
-      const playlist = await Playlist.create(
-        {
-          userId: actor.userId,
+      let playlist = proposal.playlist_id
+        ? await Playlist.query({ client: trx })
+            .where({ id: proposal.playlist_id, user_id: actor.userId })
+            .forUpdate()
+            .first()
+        : null
+      if (!playlist) {
+        playlist = await Playlist.create(
+          {
+            userId: actor.userId,
+            title: content.title,
+            description: content.description || null,
+            slug: `selection-${randomUUID()}`,
+            isPublic: true,
+            accent: 'lime',
+          },
+          { client: trx }
+        )
+      } else {
+        playlist.merge({
           title: content.title,
           description: content.description || null,
-          slug: `selection-${randomUUID()}`,
           isPublic: true,
-          accent: 'lime',
-        },
-        { client: trx }
-      )
-      await PlaylistItem.createMany(
-        content.items.map((item, position) => ({
-          playlistId: playlist.id,
+        })
+        await playlist.save()
+      }
+      const kept: number[] = []
+      for (const [position, item] of content.items.entries()) {
+        const values = {
           title: item.title,
           description: item.description || null,
           position,
-          imageUrl: `/editorial/media/${item.media_id}`,
-        })),
-        { client: trx }
-      )
+          image_url: item.image_url || `/editorial/media/${item.media_id}`,
+          updated_at: new Date(),
+        }
+        const existing = await trx
+          .from('playlist_items')
+          .where({ playlist_id: playlist.id, editorial_item_id: item.id! })
+          .first()
+        if (existing) {
+          await trx.from('playlist_items').where('id', existing.id).update(values)
+          kept.push(existing.id)
+        } else {
+          const [created] = await trx
+            .table('playlist_items')
+            .insert({
+              ...values,
+              playlist_id: playlist.id,
+              editorial_item_id: item.id!,
+              created_at: new Date(),
+            })
+            .returning('id')
+          kept.push(created.id)
+        }
+      }
+      await trx
+        .from('playlist_items')
+        .where('playlist_id', playlist.id)
+        .whereNotIn('id', kept)
+        .delete()
       await trx.from('editorial_proposals').where('id', proposalId).update({
         status: 'published',
         playlist_id: playlist.id,
@@ -266,7 +319,138 @@ export default class Proposals {
         updated_at: new Date(),
       })
       await audit(trx, actor, 'publish', proposalId, expected, { playlist_id: playlist.id })
-      return { playlist_id: playlist.id }
+      return {
+        proposal_id: proposalId,
+        revision: expected,
+        status: 'published',
+        playlist_id: playlist.id,
+        public_url: `/p/${playlist.slug}`,
+      }
+    }
+    return transaction ? run(transaction) : db.transaction(run)
+  }
+
+  async setImage(
+    actor: Actor,
+    proposalId: string,
+    expected: number,
+    itemId: string,
+    input: { url?: string; data_base64?: string; credit?: string },
+    transaction?: Trx
+  ) {
+    requireScope(actor, 'editorial:write')
+    const run = async (trx: Trx) => {
+      const proposal = await this.get(actor, proposalId, trx, true)
+      assertRevision(proposal.revision, expected)
+      if (!proposal.content.items.some((item: Content['items'][number]) => item.id === itemId))
+        throw new EditorialError('NOT_FOUND', 'Élément introuvable.')
+      let mediaId: string | undefined
+      if (input.data_base64) {
+        if (!/^[A-Za-z0-9+/]+={0,2}$/.test(input.data_base64))
+          throw new EditorialError('VALIDATION_FAILED', 'Fichier image encodé invalide.')
+        const bytes = Buffer.from(input.data_base64, 'base64')
+        if (bytes.length > 8 * 1024 * 1024)
+          throw new EditorialError('VALIDATION_FAILED', 'Image trop volumineuse (8 Mo maximum).')
+        const uploaded = await new EditorialMedia().upload(
+          actor,
+          bytes,
+          { credit: input.credit || '' },
+          trx
+        )
+        mediaId = uploaded.media_id
+      }
+      return this.mutate(
+        actor,
+        proposalId,
+        expected,
+        'set_image',
+        (content) => ({
+          ...content,
+          items: content.items.map((item) => {
+            if (item.id !== itemId) return item
+            const rest = { ...item }
+            delete rest.media_id
+            delete rest.image_url
+            return {
+              ...rest,
+              ...(mediaId ? { media_id: mediaId } : input.url ? { image_url: input.url } : {}),
+              image_credit: input.credit ?? item.image_credit ?? '',
+            }
+          }),
+        }),
+        trx
+      )
+    }
+    return transaction ? run(transaction) : db.transaction(run)
+  }
+
+  async unpublish(actor: Actor, proposalId: string, expected: number) {
+    requireScope(actor, 'editorial:write')
+    return db.transaction(async (trx) => {
+      const proposal = await this.get(actor, proposalId, trx, true)
+      assertRevision(proposal.revision, expected)
+      if (proposal.playlist_id)
+        await trx
+          .from('playlists')
+          .where({ id: proposal.playlist_id, user_id: actor.userId })
+          .update({ is_public: false, updated_at: new Date() })
+      const revision = expected + 1
+      await trx
+        .from('editorial_proposals')
+        .where('id', proposalId)
+        .update({ status: 'draft', revision, updated_at: new Date() })
+      await this.snapshot(trx, proposalId, revision, proposal.content)
+      await audit(trx, actor, 'unpublish', proposalId, revision)
+      return { proposal_id: proposalId, revision, status: 'draft' }
+    })
+  }
+
+  async remove(actor: Actor, proposalId: string, expected: number) {
+    requireScope(actor, 'editorial:write')
+    return db.transaction(async (trx) => {
+      const proposal = await this.get(actor, proposalId, trx, true)
+      assertRevision(proposal.revision, expected)
+      const jobs = await trx
+        .from('editorial_jobs')
+        .where('user_id', actor.userId)
+        .where((query) => {
+          query
+            .whereRaw("input->>'proposal_id' = ?", [proposalId])
+            .orWhereRaw("result->>'proposal_id' = ?", [proposalId])
+          if (proposal.job_id) query.orWhere('id', proposal.job_id)
+        })
+        .select('id')
+      const jobIds = jobs.map((job) => job.id)
+      if (jobIds.length) {
+        await trx
+          .from('editorial_jobs')
+          .whereIn('id', jobIds)
+          .update({ result: trx.raw("result - 'proposal_id'") })
+        await trx
+          .from('editorial_jobs')
+          .whereIn('id', jobIds)
+          .whereIn('status', ['queued', 'running'])
+          .update({
+            status: 'cancelled',
+            stage: 'cancelled',
+            lease_token: null,
+            lease_until: null,
+            updated_at: new Date(),
+          })
+      }
+      await audit(trx, actor, 'delete', proposalId, expected, { proposal_id: proposalId })
+      await trx
+        .from('editorial_audit')
+        .where('proposal_id', proposalId)
+        .update({ proposal_id: null })
+      await trx.from('editorial_revisions').where('proposal_id', proposalId).delete()
+      await trx.from('editorial_proposals').where('id', proposalId).delete()
+      if (proposal.playlist_id)
+        await trx
+          .from('playlists')
+          .where({ id: proposal.playlist_id, user_id: actor.userId })
+          .delete()
+      return { proposal_id: proposalId, deleted: true }
     })
   }
 
@@ -276,8 +460,7 @@ export default class Proposals {
     expected: number,
     action: 'reject' | 'reopen'
   ) {
-    if (actor.identity !== `dashboard:${actor.userId}`)
-      throw new EditorialError('FORBIDDEN', 'Action réservée au tableau de bord.')
+    requireScope(actor, 'editorial:write')
     return db.transaction(async (trx) => {
       const proposal = await this.get(actor, proposalId, trx, true)
       assertRevision(proposal.revision, expected)

@@ -163,7 +163,7 @@ if (process.env.EDITORIAL_DB_TESTS === '1') {
       assert.equal(denied.status(), 401)
       assert.include(denied.headers()['www-authenticate'], 'resource_metadata')
     })
-    test('consents, exchanges PKCE code, lists 21 tools, rotates refresh and revokes access', async ({
+    test('consents, exchanges PKCE code, lists 27 tools, rotates refresh and revokes access', async ({
       browserContext,
       assert,
     }) => {
@@ -185,8 +185,8 @@ if (process.env.EDITORIAL_DB_TESTS === '1') {
       const tools = JSON.parse(
         raw.startsWith('event:') ? raw.split('data: ')[1].split('\n')[0] : raw
       ).result.tools
-      assert.lengthOf(tools, 21)
-      assert.isFalse(tools.some((tool: { name: string }) => /publish|approve/.test(tool.name)))
+      assert.lengthOf(tools, 27)
+      assert.isTrue(tools.some((tool: { name: string }) => tool.name === 'publish_proposal'))
       const second = await browserContext.request.post(`${base}/oauth/token`, {
         form: {
           grant_type: 'refresh_token',
@@ -201,9 +201,9 @@ if (process.env.EDITORIAL_DB_TESTS === '1') {
       const active = await mcp(browserContext, refreshed.access_token)
       assert.equal(active.status(), 200)
       await page.goto(`${base}/admin/editorial`)
-      await page.getByRole('button', { name: 'Connexions MCP' }).click()
+      await page.getByText('Assistant connecté · MCP', { exact: true }).click()
       await page.getByRole('button', { name: 'Révoquer', exact: true }).click()
-      await page.getByText('Révoquée', { exact: true }).waitFor()
+      await page.getByText('Accès révoqué', { exact: true }).waitFor()
       const revoked = await mcp(browserContext, refreshed.access_token)
       assert.equal(revoked.status(), 401)
       const refreshRevoked = await browserContext.request.post(`${base}/oauth/token`, {

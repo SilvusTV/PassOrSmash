@@ -2,7 +2,7 @@ import { Head } from '@inertiajs/react'
 
 const labels: Record<string, string> = {
   'editorial:read': 'Consulter vos playlists, propositions et exécutions',
-  'editorial:write': 'Créer et modifier vos brouillons, puis les soumettre pour examen',
+  'editorial:write': 'Créer, modifier, publier, retirer du site et supprimer vos sélections',
   'editorial:generate':
     'Rechercher des actualités et lancer des préparations dans les limites du budget',
 }
@@ -45,8 +45,8 @@ export default function Consent({
             ))}
           </ul>
           <p>
-            Cette connexion ne peut pas publier. Chaque publication exige votre validation dans le
-            studio éditorial.
+            Avec le droit d’écriture, cet assistant peut publier vos sélections et les retirer du
+            site. Vous pouvez révoquer son accès depuis l’espace édito.
           </p>
           <p>
             Application déclarée : <strong>{clientName}</strong>

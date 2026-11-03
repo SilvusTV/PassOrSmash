@@ -8,6 +8,7 @@ import {
   contentPatchSchema,
   itemPatchSchema,
   settingsSchema,
+  settingsPatchSchema,
 } from '#services/editorial/contracts'
 import { publicAddress, safeDownload } from '#services/editorial/network'
 import { scheduleSlots } from '#services/editorial/settings'
@@ -33,7 +34,18 @@ test.group('Editorial contracts', () => {
     assert.throws(() => assertDraft('in_review'))
     assert.throws(() => assertRevision(2, 1))
   })
+  test('minimal selections accept inline images and no sources, checks or credit', ({ assert }) => {
+    const parsed = contentSchema.parse({
+      title: 'Sélection simple',
+      items: [{ title: 'Un', image_url: 'https://example.com/1.jpg' }],
+    })
+    assert.equal(parsed.category, 'sélection')
+    assert.deepEqual(parsed.sources, [])
+    assert.deepEqual(parsed.items[0].source_urls, [])
+    assert.isFalse(itemPatchSchema.safeParse({ image_url: 'javascript:alert(1)' }).success)
+  })
   test('partial edits never fill in defaults for fields not supplied', ({ assert }) => {
+    assert.deepEqual(settingsPatchSchema.parse({ item_count: 4 }), { item_count: 4 })
     assert.deepEqual(contentPatchSchema.parse({ title: 'Titre modifié' }), {
       title: 'Titre modifié',
     })
@@ -84,7 +96,7 @@ test.group('Editorial contracts', () => {
       settingsSchema.safeParse({ slots: [settings.slots[0], settings.slots[0]] }).success
     )
   })
-  test('SDK discovery exposes scoped tools and never publication capabilities', async ({
+  test('SDK discovery exposes the complete editor workflow only with write scope', async ({
     assert,
   }) => {
     for (const scopes of [
@@ -111,8 +123,19 @@ test.group('Editorial contracts', () => {
           raw.startsWith('event:') ? raw.split('data: ')[1].split('\n')[0] : raw
         )
         const names = payload.result.tools.map((tool: { name: string }) => tool.name)
-        assert.isFalse(names.some((name: string) => /publish|approve|sql|exec/.test(name)))
-        assert.equal(names.length, scopes.length === 1 ? 9 : 21)
+        assert.isFalse(names.some((name: string) => /sql|exec/.test(name)))
+        for (const name of [
+          'save_proposal',
+          'set_proposal_image',
+          'publish_proposal',
+          'unpublish_proposal',
+          'delete_proposal',
+          'retry_editorial_job',
+          'update_editorial_settings',
+        ]) {
+          assert.equal(names.includes(name), scopes.includes('editorial:write'), name)
+        }
+        assert.equal(names.length, scopes.length === 1 ? 9 : 27)
         assert.equal(names.includes('create_proposal'), scopes.includes('editorial:write'))
         assert.equal(names.includes('update_playlist'), scopes.includes('editorial:write'))
         assert.equal(names.includes('create_playlist'), scopes.includes('editorial:write'))

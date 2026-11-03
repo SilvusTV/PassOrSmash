@@ -1,6 +1,6 @@
 /* eslint-disable @adonisjs/prefer-adonisjs-inertia-link */
 import { Head, Link, router, usePoll } from '@inertiajs/react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { Proposal, Settings } from '~/editorial_types'
 import { AdminNav } from '~/components/admin'
 
@@ -8,19 +8,10 @@ type Job = {
   id: string
   kind: string
   status: string
-  attempts: number
   error?: { message: string }
   result?: { proposal_id?: string }
-  created_at: string
 }
-type Connection = {
-  id: string
-  subject: string
-  client_id: string
-  scopes: string[]
-  expires_at: string
-  revoked: boolean
-}
+type Connection = { id: string; client_id: string; scopes: string[]; revoked: boolean }
 export default function EditorialIndex(props: {
   settings: Settings
   missing: string[]
@@ -28,330 +19,309 @@ export default function EditorialIndex(props: {
   proposals: Proposal[]
   jobs: Job[]
   connections: Connection[]
+  mcpUrl?: string
   externalOAuth?: boolean
 }) {
-  const [tab, setTab] = useState('proposals')
   const [search, setSearch] = useState('')
-  const [status, setStatus] = useState('all')
+  const [filter, setFilter] = useState('all')
   const [busy, setBusy] = useState(false)
-  usePoll(5000, { only: ['jobs', 'proposals', 'connections', 'nextSlot'] })
+  const [settings, setSettings] = useState(props.settings)
+  const [categories, setCategories] = useState(props.settings.categories.join(', '))
+  const [topic, setTopic] = useState('')
+  const [category, setCategory] = useState(props.settings.categories[0] || 'jeux')
+  const [subject, setSubject] = useState('')
+  const [client, setClient] = useState('')
+  const pending = props.jobs.some((job) => ['queued', 'running'].includes(job.status))
+  const { start, stop } = usePoll(5000, { only: ['jobs', 'proposals'] }, { autoStart: false })
+  useEffect(() => {
+    if (pending) start()
+    else stop()
+    return stop
+  }, [pending, start, stop])
   const post = (url: string, data = {}) => {
     if (busy) return
     setBusy(true)
     router.post(url, data, { onFinish: () => setBusy(false) })
   }
-  const [settings, setSettings] = useState(props.settings)
-  const [categories, setCategories] = useState(props.settings.categories.join(', '))
-  const [topic, setTopic] = useState('')
-  const [category, setCategory] = useState(settings.categories[0] || 'jeux')
-  const generationCategory = props.settings.categories.includes(category)
-    ? category
-    : props.settings.categories[0] || 'jeux'
-  const [subject, setSubject] = useState('')
-  const [clientId, setClientId] = useState('')
-  const [accessScopes, setAccessScopes] = useState(['editorial:read'])
-  const statusLabels: Record<string, string> = {
-    draft: 'Brouillon',
-    in_review: 'À examiner',
-    rejected: 'À reprendre',
-    published: 'Publiée',
-    queued: 'En attente',
-    running: 'En cours',
-    succeeded: 'Terminée',
-    no_topic: 'Aucun sujet',
-    failed: 'Échec',
-  }
-  const generationReady = !props.missing.some((missing) =>
-    ['Sources JSON Feed', 'Fournisseur de génération'].includes(missing)
-  )
   const filtered = props.proposals.filter(
     (proposal) =>
-      (status === 'all' || proposal.status === status) &&
-      proposal.content.title.toLocaleLowerCase('fr').includes(search.toLocaleLowerCase('fr'))
+      proposal.content.title.toLocaleLowerCase('fr').includes(search.toLocaleLowerCase('fr')) &&
+      (filter === 'all' ||
+        (filter === 'published'
+          ? proposal.status === 'published'
+          : proposal.status !== 'published'))
   )
-  const date = (value: string) =>
-    new Date(value).toLocaleString('fr-FR', { timeZone: 'Europe/Paris' })
   return (
     <>
-      <Head title="Studio éditorial">
+      <Head title="Édito">
         <meta name="robots" content="noindex, nofollow" />
       </Head>
-      <div className="studio-shell">
-        <section className="studio-hero">
+      <div className="edito-shell">
+        <AdminNav />
+        <header className="edito-heading">
           <div>
-            <span className="eyebrow">La sélection commence ici</span>
-            <h1>
-              Studio <span>éditorial.</span>
-            </h1>
-            <p>Préparez vos sélections, vérifiez les sources et publiez après examen.</p>
+            <h1>Édito</h1>
+            <p>Vos sélections, du brouillon à la publication.</p>
           </div>
-        </section>
-        <div className="editorial-layout">
-          <AdminNav />
-          <div className="studio-metrics" aria-label="Résumé du studio">
-            <div>
-              <strong>{props.proposals.filter((p) => p.status === 'draft').length}</strong>
-              <span>Brouillons à façonner</span>
-            </div>
-            <div>
-              <strong>{props.proposals.filter((p) => p.status === 'in_review').length}</strong>
-              <span>Sélections à examiner</span>
-            </div>
-            <div>
-              <strong>
-                {props.jobs.filter((j) => ['queued', 'running'].includes(j.status)).length}
-              </strong>
-              <span>Tâches en cours</span>
-            </div>
-            <div>
-              <strong>{props.settings.enabled ? 'ON' : 'OFF'}</strong>
-              <span>Préparation automatique</span>
-            </div>
+          <button
+            className="button button-primary"
+            disabled={busy}
+            onClick={() =>
+              post('/admin/editorial/proposals', {
+                content: JSON.stringify({
+                  title: 'Nouvelle sélection',
+                  category: 'sélection',
+                  items: [],
+                }),
+                idempotency_key: crypto.randomUUID(),
+              })
+            }
+          >
+            + Nouvelle sélection
+          </button>
+        </header>
+        <section className="edito-list editorial-panel" aria-label="Sélections">
+          <div className="edito-list-filters">
+            <label>
+              Rechercher
+              <input
+                type="search"
+                placeholder="Rechercher une sélection…"
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+              />
+            </label>
+            <label>
+              Afficher
+              <select value={filter} onChange={(event) => setFilter(event.target.value)}>
+                <option value="all">Toutes</option>
+                <option value="draft">Brouillons</option>
+                <option value="published">En ligne</option>
+              </select>
+            </label>
           </div>
-          <nav className="studio-tabs" aria-label="Sections du studio">
-            {[
-              ['proposals', '01', 'Sélections'],
-              ['settings', '02', 'Planification'],
-              ['jobs', '03', 'Activité'],
-              ['connections', '04', 'Connexions MCP'],
-            ].map(([value, number, label]) => (
-              <button
-                type="button"
-                key={value}
-                aria-pressed={tab === value}
-                onClick={() => setTab(value)}
+          {filtered.map((proposal) => (
+            <Link
+              className="edito-selection"
+              key={proposal.id}
+              href={`/admin/editorial/proposals/${proposal.id}`}
+            >
+              <div>
+                <strong>{proposal.content.title}</strong>
+                <span>
+                  {proposal.content.items.length} éléments · {proposal.content.category}
+                </span>
+              </div>
+              <span
+                className={`studio-badge ${proposal.status === 'published' ? 'published' : 'draft'}`}
               >
-                <small aria-hidden="true">{number}</small>
-                {label}
-              </button>
-            ))}
-          </nav>
-          {tab === 'proposals' && (
-            <>
-              <section className="editorial-panel">
-                <div className="studio-section-heading">
-                  <div>
-                    <span className="eyebrow">Votre atelier</span>
-                    <h2>Les prochaines sélections.</h2>
-                  </div>
-                  <button
-                    className="button"
-                    disabled={busy}
-                    onClick={() =>
-                      post('/admin/editorial/proposals', {
-                        content: JSON.stringify({
-                          title: 'Nouvelle sélection',
-                          description: '',
-                          category: generationCategory,
-                          items: [],
-                          sources: [],
-                          checks: [],
-                        }),
-                        idempotency_key: crypto.randomUUID(),
-                      })
-                    }
-                  >
-                    Créer un brouillon
-                  </button>
-                </div>
-                <div className="studio-filters">
+                {proposal.status === 'published' ? 'En ligne' : 'Brouillon'}
+              </span>
+              <span aria-hidden="true">→</span>
+            </Link>
+          ))}
+          {!filtered.length && (
+            <p className="edito-empty">
+              {search || filter !== 'all'
+                ? 'Aucune sélection trouvée.'
+                : 'Créez votre première sélection ou demandez-la à votre assistant connecté.'}
+            </p>
+          )}
+        </section>
+        <details className="edito-details editorial-panel">
+          <summary>Préparation automatique</summary>
+          <p>Une option pour préparer des brouillons depuis l’actualité.</p>
+          <form
+            onSubmit={(event) => {
+              event.preventDefault()
+              post('/admin/editorial/generate', {
+                topic,
+                category,
+                item_count: settings.item_count,
+                idempotency_key: crypto.randomUUID(),
+              })
+            }}
+          >
+            <div className="edito-basics">
+              <label>
+                Sujet
+                <input
+                  required
+                  maxLength={200}
+                  value={topic}
+                  onChange={(event) => setTopic(event.target.value)}
+                />
+              </label>
+              <label>
+                Catégorie
+                <input
+                  required
+                  maxLength={60}
+                  value={category}
+                  onChange={(event) => setCategory(event.target.value)}
+                />
+              </label>
+            </div>
+            <button
+              className="button"
+              disabled={
+                busy ||
+                props.missing.some((value) =>
+                  ['Sources JSON Feed', 'Fournisseur de génération'].includes(value)
+                )
+              }
+            >
+              Préparer un brouillon
+            </button>
+          </form>
+          <details className="edito-subdetails">
+            <summary>Réglages de l’automatisation</summary>
+            {props.missing.length > 0 && (
+              <p>À configurer pour l’automatisation : {props.missing.join(', ')}.</p>
+            )}
+            <form
+              onSubmit={(event) => {
+                event.preventDefault()
+                post('/admin/editorial/settings', {
+                  settings: JSON.stringify({
+                    ...settings,
+                    categories: categories
+                      .split(',')
+                      .map((value) => value.trim())
+                      .filter(Boolean),
+                  }),
+                })
+              }}
+            >
+              <label className="edito-checkbox">
+                <input
+                  type="checkbox"
+                  checked={settings.enabled}
+                  onChange={(event) => setSettings({ ...settings, enabled: event.target.checked })}
+                />{' '}
+                Préparer automatiquement
+              </label>
+              {settings.slots.map((slot, index) => (
+                <div className="edito-basics" key={index}>
                   <label>
-                    Rechercher une sélection
-                    <input
-                      type="search"
-                      value={search}
-                      onChange={(e) => setSearch(e.target.value)}
-                      placeholder="Titre de la sélection…"
-                    />
-                  </label>
-                  <label>
-                    Statut
+                    Jour {index + 1}
                     <select
-                      aria-label="Statut"
-                      value={status}
-                      onChange={(e) => setStatus(e.target.value)}
+                      value={slot.weekday}
+                      onChange={(event) =>
+                        setSettings({
+                          ...settings,
+                          slots: settings.slots.map((value, i) =>
+                            i === index ? { ...value, weekday: Number(event.target.value) } : value
+                          ),
+                        })
+                      }
                     >
-                      <option value="all">Tous les statuts</option>
-                      {['draft', 'in_review', 'rejected', 'published'].map((value) => (
-                        <option key={value} value={value}>
-                          {statusLabels[value]}
+                      {[
+                        'Lundi',
+                        'Mardi',
+                        'Mercredi',
+                        'Jeudi',
+                        'Vendredi',
+                        'Samedi',
+                        'Dimanche',
+                      ].map((day, i) => (
+                        <option key={day} value={i + 1}>
+                          {day}
                         </option>
                       ))}
                     </select>
                   </label>
-                </div>
-                {filtered.length ? (
-                  filtered.map((proposal) => (
-                    <article className="studio-proposal" key={proposal.id}>
-                      <Link href={`/admin/editorial/proposals/${proposal.id}`}>
-                        {proposal.content.title}
-                      </Link>
-                      <span>
-                        <span className={`studio-badge ${proposal.status}`}>
-                          {statusLabels[proposal.status]}
-                        </span>{' '}
-                        · v{proposal.revision} · {date(proposal.created_at)}
-                      </span>
-                    </article>
-                  ))
-                ) : (
-                  <div className="studio-empty">
-                    <strong>
-                      {search || status !== 'all'
-                        ? 'Aucun résultat.'
-                        : 'Votre prochaine sélection commence ici.'}
-                    </strong>
-                    <p>Créez un brouillon libre ou préparez une sélection depuis l’actualité.</p>
-                  </div>
-                )}
-              </section>
-              <section className="editorial-panel">
-                <h2>Préparer depuis l’actualité</h2>
-                {!generationReady && (
-                  <div className="studio-notice" role="status">
-                    <strong>Préparation automatique à configurer</strong>
-                    <p>
-                      Ajoutez des sources JSON Feed dans la planification et configurez le
-                      fournisseur de génération sur le serveur. Vous pouvez déjà créer et publier
-                      vos sélections manuellement.
-                    </p>
-                    <button type="button" onClick={() => setTab('settings')}>
-                      Configurer la planification
-                    </button>
-                  </div>
-                )}
-                <form
-                  onSubmit={(event) => {
-                    event.preventDefault()
-                    post('/admin/editorial/generate', {
-                      topic,
-                      category: generationCategory,
-                      item_count: settings.item_count,
-                      idempotency_key: crypto.randomUUID(),
-                    })
-                  }}
-                >
                   <label>
-                    Sujet recherché
+                    Heure {index + 1}
                     <input
-                      value={topic}
-                      onChange={(event) => setTopic(event.target.value)}
+                      type="time"
                       required
-                      maxLength={200}
+                      value={`${String(slot.hour).padStart(2, '0')}:${String(slot.minute).padStart(2, '0')}`}
+                      onChange={(event) => {
+                        const [hour, minute] = event.target.value.split(':').map(Number)
+                        setSettings({
+                          ...settings,
+                          slots: settings.slots.map((value, i) =>
+                            i === index ? { ...value, hour, minute } : value
+                          ),
+                        })
+                      }}
                     />
                   </label>
-                  <label>
-                    Catégorie
-                    <select
-                      aria-label="Catégorie"
-                      value={generationCategory}
-                      onChange={(event) => setCategory(event.target.value)}
-                    >
-                      {props.settings.categories.map((value) => (
-                        <option key={value}>{value}</option>
-                      ))}
-                    </select>
-                  </label>
-                  <button className="button" disabled={busy || !generationReady} type="submit">
-                    Lancer la préparation
-                  </button>
-                  <p>
-                    Le sujet doit correspondre à une actualité provenant des sources autorisées.
-                  </p>
-                </form>
-              </section>
-            </>
-          )}
-          {tab === 'settings' && (
-            <section className="editorial-panel">
-              <h2>À votre rythme.</h2>
+                </div>
+              ))}
               <p>
-                {props.settings.enabled ? 'Activée' : 'En pause'} · Prochain créneau :{' '}
-                {props.nextSlot ? date(props.nextSlot) : 'aucun'}
+                Heure de Paris.
+                {props.nextSlot &&
+                  ` Prochain passage : ${new Date(props.nextSlot).toLocaleString('fr-FR', { timeZone: 'Europe/Paris' })}.`}
               </p>
-              <p>
-                La pause arrête les nouveaux passages planifiés. Les tâches déjà enregistrées
-                continuent et les propositions restent consultables.
-              </p>
-              {props.missing.length > 0 && (
-                <p role="status">Avant activation : {props.missing.join(', ')}.</p>
-              )}
-              <form
-                onSubmit={(event) => {
-                  event.preventDefault()
-                  post('/admin/editorial/settings', {
-                    settings: JSON.stringify({
-                      ...settings,
-                      categories: categories
-                        .split(',')
-                        .map((v) => v.trim())
-                        .filter(Boolean),
-                    }),
-                  })
-                }}
-              >
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={settings.enabled}
-                    onChange={(event) =>
-                      setSettings({ ...settings, enabled: event.target.checked })
-                    }
-                  />{' '}
-                  Activer les passages automatiques
-                </label>
-                <p>Fuseau : Europe/Paris. Horaires proposés à confirmer avant activation.</p>
-                {settings.slots.map((slot, index) => (
-                  <div className="editorial-row" key={index}>
-                    <label>
-                      Jour
-                      <select
-                        value={slot.weekday}
+              <label>
+                Nombre d’éléments
+                <input
+                  type="number"
+                  min={2}
+                  max={30}
+                  required
+                  value={settings.item_count}
+                  onChange={(event) =>
+                    setSettings({ ...settings, item_count: Number(event.target.value) })
+                  }
+                />
+              </label>
+              <h3>Flux d’actualité</h3>
+              {settings.sources.map((source, index) => (
+                <div className="edito-feed" key={index}>
+                  {(['title', 'url', 'category'] as const).map((field) => (
+                    <label key={field}>
+                      {
+                        {
+                          title: 'Nom du flux',
+                          url: 'URL du flux JSON Feed',
+                          category: 'Catégorie du flux',
+                        }[field]
+                      }
+                      <input
+                        required
+                        type={field === 'url' ? 'url' : 'text'}
+                        value={source[field]}
                         onChange={(event) =>
                           setSettings({
                             ...settings,
-                            slots: settings.slots.map((value, i) =>
-                              i === index
-                                ? { ...value, weekday: Number(event.target.value) }
-                                : value
+                            sources: settings.sources.map((value, i) =>
+                              i === index ? { ...value, [field]: event.target.value } : value
                             ),
                           })
                         }
-                      >
-                        {[
-                          'Lundi',
-                          'Mardi',
-                          'Mercredi',
-                          'Jeudi',
-                          'Vendredi',
-                          'Samedi',
-                          'Dimanche',
-                        ].map((day, i) => (
-                          <option key={day} value={i + 1}>
-                            {day}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <label>
-                      Heure
-                      <input
-                        type="time"
-                        required
-                        value={`${String(slot.hour).padStart(2, '0')}:${String(slot.minute).padStart(2, '0')}`}
-                        onChange={(event) => {
-                          const [hour, minute] = event.target.value.split(':').map(Number)
-                          setSettings({
-                            ...settings,
-                            slots: settings.slots.map((value, i) =>
-                              i === index ? { ...value, hour, minute } : value
-                            ),
-                          })
-                        }}
                       />
                     </label>
-                  </div>
-                ))}
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setSettings({
+                        ...settings,
+                        sources: settings.sources.filter((_, i) => i !== index),
+                      })
+                    }
+                  >
+                    Retirer ce flux
+                  </button>
+                </div>
+              ))}
+              <button
+                type="button"
+                className="button"
+                onClick={() =>
+                  setSettings({
+                    ...settings,
+                    sources: [...settings.sources, { title: '', url: '', category }],
+                  })
+                }
+              >
+                Ajouter un flux
+              </button>
+              <details className="edito-subdetails">
+                <summary>Budget et options</summary>
                 <label>
                   Catégories (séparées par des virgules)
                   <input
@@ -359,65 +329,16 @@ export default function EditorialIndex(props: {
                     onChange={(event) => setCategories(event.target.value)}
                   />
                 </label>
-                <h3>Sources autorisées (JSON Feed)</h3>
-                {settings.sources.map((source, index) => (
-                  <div className="editorial-row" key={index}>
-                    {(['title', 'url', 'category'] as const).map((field) => (
-                      <label key={field}>
-                        {{ title: 'Nom', url: 'URL du flux HTTPS', category: 'Catégorie' }[field]}
-                        <input
-                          required
-                          value={source[field]}
-                          onChange={(event) =>
-                            setSettings({
-                              ...settings,
-                              sources: settings.sources.map((value, i) =>
-                                i === index ? { ...value, [field]: event.target.value } : value
-                              ),
-                            })
-                          }
-                        />
-                      </label>
-                    ))}
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setSettings({
-                          ...settings,
-                          sources: settings.sources.filter((_, i) => i !== index),
-                        })
-                      }
-                    >
-                      Retirer
-                    </button>
-                  </div>
-                ))}
-                <button
-                  type="button"
-                  onClick={() =>
-                    setSettings({
-                      ...settings,
-                      sources: [
-                        ...settings.sources,
-                        { title: '', url: '', category: generationCategory },
-                      ],
-                    })
-                  }
-                >
-                  Ajouter une source
-                </button>
                 {(
                   [
-                    { field: 'freshness_days', label: 'Fraîcheur des actualités (jours)' },
-                    { field: 'catchup_hours', label: 'Rattrapage maximal (heures)' },
-                    { field: 'item_count', label: 'Éléments par playlist' },
-                    { field: 'daily_job_limit', label: 'Appels de génération par jour' },
+                    { field: 'freshness_days', label: 'Âge maximal des actualités (jours)' },
+                    { field: 'catchup_hours', label: 'Rattrapage (heures)' },
+                    { field: 'daily_job_limit', label: 'Préparations par jour' },
                     { field: 'daily_budget_cents', label: 'Budget quotidien (centimes)' },
                     {
                       field: 'generation_call_cost_cents',
-                      label: 'Coût maximal réservé par appel (centimes)',
+                      label: 'Coût maximal par préparation (centimes)',
                     },
-                    { field: 'automation_user_id', label: 'Identifiant du compte de préparation' },
                   ] as const
                 ).map(({ field, label }) => (
                   <label key={field}>
@@ -425,160 +346,137 @@ export default function EditorialIndex(props: {
                     <input
                       type="number"
                       min={1}
-                      value={settings[field] ?? ''}
+                      required
+                      value={settings[field]}
                       onChange={(event) =>
-                        setSettings({
-                          ...settings,
-                          [field]: event.target.value ? Number(event.target.value) : undefined,
-                        })
+                        setSettings({ ...settings, [field]: Number(event.target.value) })
                       }
                     />
                   </label>
                 ))}
                 <label>
-                  Destinataire de notification
+                  Notification (facultative)
                   <input
                     value={settings.notification_label}
                     onChange={(event) =>
                       setSettings({ ...settings, notification_label: event.target.value })
                     }
-                    placeholder="Nom du destinataire configuré sur le serveur"
                   />
                 </label>
-                <button className="button button-primary" disabled={busy} type="submit">
-                  Enregistrer les réglages
-                </button>
-              </form>
-            </section>
-          )}
-          {tab === 'jobs' && (
-            <section className="editorial-panel">
-              <span className="eyebrow">Le studio en mouvement</span>
-              <h2>Activité & imports.</h2>
-              <p>Actualisation automatique toutes les 5 secondes.</p>
-              {!props.jobs.length && <p className="studio-empty">Aucune tâche pour le moment.</p>}
-              {props.jobs.map((job) => (
-                <article className="editorial-row" key={job.id}>
-                  <strong>
-                    {{
-                      image: 'Import d’image',
-                      generation: 'Préparation',
-                      notification: 'Notification',
-                    }[job.kind] || job.kind}{' '}
-                    · {statusLabels[job.status] || job.status}
-                  </strong>
-                  <span>
-                    {date(job.created_at)} · {job.attempts} tentative(s)
-                  </span>
-                  {job.error && <p className="studio-error">{job.error.message}</p>}
-                  {job.result?.proposal_id && (
-                    <Link
-                      className="button"
-                      href={`/admin/editorial/proposals/${job.result.proposal_id}`}
-                    >
-                      Ouvrir la sélection
-                    </Link>
-                  )}
-                  {job.status === 'failed' && (
-                    <button onClick={() => post(`/admin/editorial/jobs/${job.id}/retry`)}>
-                      Relancer cette tâche
-                    </button>
-                  )}
-                </article>
-              ))}
-            </section>
-          )}
-          {tab === 'connections' && (
-            <section className="editorial-panel">
-              <span className="eyebrow">Vos outils, connectés</span>
-              <h2>Connexions MCP.</h2>
-              <div className="studio-notice">
-                <strong>Créer et modifier des playlists</strong>
+              </details>
+              <button className="button button-primary" disabled={busy}>
+                Enregistrer les réglages
+              </button>
+            </form>
+          </details>
+        </details>
+        <details className="edito-details editorial-panel">
+          <summary>Assistant connecté · MCP</summary>
+          <p>
+            Connectez votre assistant à <code>{props.mcpUrl || '/mcp'}</code> avec Discord, en
+            autorisant l’écriture. Il peut créer, modifier, gérer les images, publier, retirer du
+            site et supprimer vos sélections.
+          </p>
+          {props.connections.length === 0 && <p>Aucun assistant connecté.</p>}
+          {props.connections.map((connection) => (
+            <div className="edito-connection" key={connection.id}>
+              <div>
+                <strong>{connection.client_id}</strong>
                 <p>
-                  Accordez le droit « editorial:write » lors de la connexion. Si une connexion
-                  existante affiche uniquement « editorial:read », reconnectez-la depuis votre
-                  application en demandant les droits d’écriture, puis actualisez sa liste d’outils.
+                  {connection.revoked
+                    ? 'Accès révoqué'
+                    : connection.scopes.includes('editorial:write')
+                      ? 'Lecture et écriture'
+                      : 'Lecture seule — reconnectez-vous pour autoriser les modifications'}
                 </p>
               </div>
-              <p>
-                Ajoutez l’URL du MCP à votre application, connectez-vous avec Discord et acceptez
-                les droits demandés. L’accès apparaît automatiquement ici et peut être révoqué à
-                tout moment. La publication d’une proposition reste soumise à votre validation dans
-                le studio. Les outils de playlists peuvent modifier leur visibilité.
-              </p>
-              {props.connections.map((connection) => (
-                <article className="editorial-row" key={connection.id}>
-                  <strong>{connection.client_id}</strong>
-                  <span>
-                    {connection.subject} · {connection.scopes.join(', ')} · expiration{' '}
-                    {date(connection.expires_at)}
-                  </span>
-                  {connection.revoked ? (
-                    <span>Révoquée</span>
-                  ) : (
-                    <button
-                      onClick={() => post(`/admin/editorial/connections/${connection.id}/revoke`)}
-                    >
-                      Révoquer
-                    </button>
-                  )}
-                </article>
-              ))}
-              {props.externalOAuth && (
-                <form
-                  onSubmit={(event) => {
-                    event.preventDefault()
-                    post('/admin/editorial/connections', {
-                      connection: JSON.stringify({
-                        subject,
-                        client_id: clientId,
-                        scopes: accessScopes,
-                        expires_at: new Date(Date.now() + 30 * 86400000).toISOString(),
-                      }),
-                    })
-                  }}
+              {!connection.revoked && (
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => post(`/admin/editorial/connections/${connection.id}/revoke`)}
                 >
-                  <label>
-                    Identité OAuth (sub)
-                    <input
-                      required
-                      value={subject}
-                      onChange={(event) => setSubject(event.target.value)}
-                    />
-                  </label>
-                  <label>
-                    Identifiant client OAuth
-                    <input
-                      required
-                      value={clientId}
-                      onChange={(event) => setClientId(event.target.value)}
-                    />
-                  </label>
-                  {['editorial:read', 'editorial:write', 'editorial:generate'].map((scope) => (
-                    <label key={scope}>
-                      <input
-                        type="checkbox"
-                        disabled={scope === 'editorial:read'}
-                        checked={accessScopes.includes(scope)}
-                        onChange={(event) =>
-                          setAccessScopes(
-                            event.target.checked
-                              ? [...accessScopes, scope]
-                              : accessScopes.filter((value) => value !== scope)
-                          )
-                        }
-                      />
-                      {scope}
-                    </label>
-                  ))}
-                  <button className="button" disabled={busy} type="submit">
-                    Autoriser pour 30 jours
-                  </button>
-                </form>
+                  Révoquer
+                </button>
               )}
-            </section>
+            </div>
+          ))}
+          {props.externalOAuth && (
+            <form
+              onSubmit={(event) => {
+                event.preventDefault()
+                post('/admin/editorial/connections', {
+                  connection: JSON.stringify({
+                    subject,
+                    client_id: client,
+                    scopes: ['editorial:read', 'editorial:write', 'editorial:generate'],
+                    expires_at: new Date(Date.now() + 30 * 86400000).toISOString(),
+                  }),
+                })
+              }}
+            >
+              <label>
+                Identité OAuth
+                <input
+                  required
+                  value={subject}
+                  onChange={(event) => setSubject(event.target.value)}
+                />
+              </label>
+              <label>
+                Client OAuth
+                <input
+                  required
+                  value={client}
+                  onChange={(event) => setClient(event.target.value)}
+                />
+              </label>
+              <button className="button" disabled={busy}>
+                Autoriser pour 30 jours
+              </button>
+            </form>
           )}
-        </div>
+        </details>
+        {props.jobs.length > 0 && (
+          <details className="edito-details editorial-panel">
+            <summary>Activité{pending ? ' · en cours' : ''}</summary>
+            {props.jobs.slice(0, 20).map((job) => (
+              <div className="edito-job" key={job.id}>
+                <div>
+                  <strong>
+                    {{
+                      generation: 'Préparation',
+                      image: 'Import d’image',
+                      notification: 'Notification',
+                    }[job.kind] || job.kind}
+                  </strong>
+                  <p>
+                    {{
+                      queued: 'En attente',
+                      running: 'En cours',
+                      succeeded: 'Terminée',
+                      no_topic: 'Aucun sujet trouvé',
+                      failed: 'Échec',
+                      cancelled: 'Annulée',
+                    }[job.status] || job.status}
+                    {job.error && ` · ${job.error.message}`}
+                  </p>
+                </div>
+                {job.result?.proposal_id && (
+                  <Link href={`/admin/editorial/proposals/${job.result.proposal_id}`}>Ouvrir</Link>
+                )}
+                {job.status === 'failed' && (
+                  <button
+                    disabled={busy}
+                    onClick={() => post(`/admin/editorial/jobs/${job.id}/retry`)}
+                  >
+                    Réessayer
+                  </button>
+                )}
+              </div>
+            ))}
+          </details>
+        )}
       </div>
     </>
   )

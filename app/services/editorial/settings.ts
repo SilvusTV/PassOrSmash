@@ -11,8 +11,6 @@ export function readiness(settings: Settings) {
   const missing: string[] = []
   if (!settings.sources.length) missing.push('Sources JSON Feed')
   if (!settings.automation_user_id) missing.push('Compte de préparation')
-  if (!settings.notification_label || !env.get('EDITORIAL_NOTIFICATION_URL'))
-    missing.push('Destinataire et endpoint de notification')
   if (!env.get('EDITORIAL_GENERATION_URL')) missing.push('Fournisseur de génération')
   return missing
 }

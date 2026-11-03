@@ -26,6 +26,24 @@ export default class EditorialJobs {
       media: new EditorialMedia() as Pick<EditorialMedia, 'import'>,
     }
   ) {}
+  async retry(actor: Actor, jobId: string) {
+    requireScope(actor, 'editorial:write')
+    const updated = await db
+      .from('editorial_jobs')
+      .where({ id: jobId, user_id: actor.userId, status: 'failed' })
+      .update({
+        status: 'queued',
+        stage: 'queued',
+        error: null,
+        attempts: 0,
+        lease_token: null,
+        lease_until: null,
+        available_at: new Date(),
+        updated_at: new Date(),
+      })
+    if (!updated) throw new EditorialError('NOT_FOUND', 'Cette tâche ne peut pas être relancée.')
+    return { job_id: jobId, status: 'queued' }
+  }
   async enqueue(
     actor: Actor,
     kind: 'generation' | 'image',
@@ -194,6 +212,7 @@ export default class EditorialJobs {
               if (!('expected_media_id' in job.input))
                 assertRevision(current.revision, job.input.expected_revision)
               item.media_id = media.media_id
+              delete item.image_url
               return content
             },
             trx
@@ -205,16 +224,6 @@ export default class EditorialJobs {
           .where({ job_id: job.id, user_id: actor.userId })
           .first()
         if (existing) {
-          if (job.input.automatic && existing.status === 'draft') {
-            const validation = await proposals.validate(actor, existing.id, existing.revision)
-            if (validation.valid)
-              await proposals.submit(
-                actor,
-                existing.id,
-                existing.revision,
-                `automatic-submit:${job.id}`
-              )
-          }
           await this.finish(job, 'succeeded', {
             proposal_id: existing.id,
             revision: existing.revision,
@@ -279,11 +288,10 @@ export default class EditorialJobs {
           await this.checkpoint(job, 'generated', { generated })
         }
         for (const image of generated.images) {
-          checkDeadline()
-          if (!generated.content.items[image.item_index].media_id) {
-            const media = await this.providers.media.import(actor, image.provenance)
-            generated.content.items[image.item_index].media_id = media.media_id
-            await this.checkpoint(job, 'verifying_images', { generated })
+          const item = generated.content.items[image.item_index]
+          if (!item.media_id && !item.image_url) {
+            item.image_url = image.provenance.url
+            item.image_credit = image.provenance.credit
           }
         }
         checkDeadline()
@@ -294,13 +302,7 @@ export default class EditorialJobs {
           job.id,
           job.lease_token
         )
-        if (job.input.automatic) {
-          const proposalId = String(result.proposal_id)
-          const validation = await proposals.validate(actor, proposalId, 1)
-          if (validation.valid)
-            await proposals.submit(actor, proposalId, 1, `automatic-submit:${job.id}`)
-          else await this.notify(job, 'needs_attention', proposalId)
-        }
+        if (job.input.automatic) await this.notify(job, 'ready', String(result.proposal_id))
       }
       await this.finish(job, 'succeeded', result)
     } catch (error) {
@@ -352,6 +354,7 @@ export default class EditorialJobs {
       })
   }
   private async notify(job: { id: string; user_id: number }, event: string, proposalId?: string) {
+    if (!env.get('EDITORIAL_NOTIFICATION_URL')) return
     await db
       .table('editorial_jobs')
       .insert({

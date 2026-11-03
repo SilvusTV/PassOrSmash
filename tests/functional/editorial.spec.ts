@@ -152,27 +152,185 @@ if (process.env.EDITORIAL_DB_TESTS === '1') {
       const edited = await service.get(actor, proposal.proposal_id)
       assert.equal(edited.revision, 2)
     })
-    test('submission freezes contents and only dashboard approval publishes exactly once', async ({
+    test('a scoped MCP actor publishes directly and repeated publication creates no duplicate', async ({
       assert,
     }) => {
-      const proposal = await service.create(actor, content(), randomUUID())
+      const input = content()
+      input.sources = []
+      input.items.forEach((item) => {
+        item.source_urls = []
+      })
+      input.checks = ['Ancienne note éditoriale, sans blocage']
+      const proposal = await service.create(actor, input, randomUUID())
       const assistant = { ...actor, identity: 'mcp:client-test' }
-      await service.submit(assistant, proposal.proposal_id, 1, randomUUID())
-      await assert.rejects(
-        () => service.mutate(assistant, proposal.proposal_id, 1, 'update', (value) => value),
-        /brouillon/
-      )
-      await assert.rejects(() => service.publish(assistant, proposal.proposal_id, 1), /humaine/)
       const published = await Promise.all([
-        service.publish(actor, proposal.proposal_id, 1),
-        service.publish(actor, proposal.proposal_id, 1),
+        service.publish(assistant, proposal.proposal_id, 1),
+        service.publish(assistant, proposal.proposal_id, 1),
       ])
       assert.equal(published[0].playlist_id, published[1].playlist_id)
       assert.lengthOf(await Playlist.all(), 1)
       assert.lengthOf(await PlaylistItem.all(), 2)
-      const row = await db.from('editorial_proposals').where('id', proposal.proposal_id).first()
-      assert.equal(row.approved_by, actor.userId)
-      assert.equal(row.approved_revision, 1)
+      await assert.rejects(
+        () =>
+          service.publish({ ...assistant, scopes: ['editorial:read'] }, proposal.proposal_id, 1),
+        /insuffisant/
+      )
+    })
+    test('MCP handles images, saves, publication, withdrawal, republication, settings, retries and deletion', async ({
+      assert,
+    }) => {
+      const handler = createMcpHandler(() =>
+        createEditorialServer({ ...actor, identity: 'mcp:test-client' })
+      )
+      async function call(name: string, args: unknown) {
+        const response = await handler.fetch(
+          new Request('http://localhost/mcp', {
+            method: 'POST',
+            headers: {
+              'content-type': 'application/json',
+              'accept': 'application/json, text/event-stream',
+              'mcp-protocol-version': '2025-11-25',
+            },
+            body: JSON.stringify({
+              jsonrpc: '2.0',
+              id: 1,
+              method: 'tools/call',
+              params: { name, arguments: args },
+            }),
+          })
+        )
+        const raw = await response.text()
+        const payload = JSON.parse(
+          raw.startsWith('event:') ? raw.split('data: ')[1].split('\n')[0] : raw
+        )
+        assert.isUndefined(payload.error, JSON.stringify(payload))
+        assert.isUndefined(payload.result.isError, JSON.stringify(payload))
+        return payload.result.structuredContent.data
+      }
+      try {
+        const created = await call('create_proposal', {
+          content: {
+            title: 'Tout depuis le MCP',
+            items: [1, 2].map((i) => ({
+              title: `Élément ${i}`,
+              image_url: `https://example.com/${i}.png`,
+              image_credit: '',
+            })),
+          },
+          idempotency_key: randomUUID(),
+        })
+        const proposalId = created.proposal_id
+        let proposal = await call('get_proposal', { proposal_id: proposalId })
+        const [first, second] = proposal.content.items
+        const imageBytes = await sharp({
+          create: { width: 120, height: 120, channels: 3, background: '#fff' },
+        })
+          .png()
+          .toBuffer()
+        const uploaded = await call('set_proposal_image', {
+          proposal_id: proposalId,
+          expected_revision: proposal.revision,
+          item_id: first.id,
+          data_base64: imageBytes.toString('base64'),
+          credit: '',
+        })
+        const linked = await call('set_proposal_image', {
+          proposal_id: proposalId,
+          expected_revision: uploaded.revision,
+          item_id: second.id,
+          url: 'https://example.com/direct.png',
+        })
+        const reordered = await call('reorder_proposal_items', {
+          proposal_id: proposalId,
+          expected_revision: linked.revision,
+          item_ids: [second.id, first.id],
+        })
+        let published = await call('publish_proposal', {
+          proposal_id: proposalId,
+          expected_revision: reordered.revision,
+        })
+        const live = await call('update_proposal', {
+          proposal_id: proposalId,
+          expected_revision: published.revision,
+          fields: { title: 'Modifiée en ligne' },
+        })
+        const livePlaylist = await Playlist.findOrFail(published.playlist_id)
+        assert.equal(livePlaylist.title, 'Modifiée en ligne')
+        assert.isTrue(livePlaylist.isPublic)
+        published = { ...published, ...live }
+        const original = await db
+          .from('playlist_items')
+          .where('playlist_id', published.playlist_id)
+          .orderBy('position')
+        await db.from('playlist_items').where('id', original[0].id).update({ smashes: 42 })
+        const draft = await call('unpublish_proposal', {
+          proposal_id: proposalId,
+          expected_revision: published.revision,
+        })
+        proposal = await call('get_proposal', { proposal_id: proposalId })
+        const saved = await call('save_proposal', {
+          proposal_id: proposalId,
+          expected_revision: draft.revision,
+          content: {
+            ...proposal.content,
+            title: 'Nouvelle version',
+            items: [...proposal.content.items].reverse(),
+          },
+          publish: true,
+        })
+        assert.equal(saved.public_url, published.public_url)
+        assert.equal(saved.playlist_id, published.playlist_id)
+        const after = await db
+          .from('playlist_items')
+          .where('playlist_id', saved.playlist_id)
+          .orderBy('position')
+        assert.deepEqual(
+          after.map((item) => item.id),
+          original.map((item) => item.id).reverse()
+        )
+        assert.equal(after[1].smashes, 42)
+        const settings = await call('update_editorial_settings', { fields: { item_count: 4 } })
+        assert.equal(settings.item_count, 4)
+        const jobId = randomUUID()
+        await db.table('editorial_jobs').insert({
+          id: jobId,
+          user_id: actor.userId,
+          kind: 'generation',
+          status: 'failed',
+          input: '{}',
+          available_at: new Date(),
+          created_at: new Date(),
+          updated_at: new Date(),
+        })
+        const retried = await call('retry_editorial_job', { job_id: jobId })
+        assert.equal(retried.status, 'queued')
+        const withdrawn = await call('unpublish_proposal', {
+          proposal_id: proposalId,
+          expected_revision: saved.revision,
+        })
+        const pendingImage = randomUUID()
+        await db.table('editorial_jobs').insert({
+          id: pendingImage,
+          user_id: actor.userId,
+          kind: 'image',
+          status: 'queued',
+          input: JSON.stringify({ proposal_id: proposalId }),
+          available_at: new Date(),
+          created_at: new Date(),
+          updated_at: new Date(),
+        })
+        const deleted = await call('delete_proposal', {
+          proposal_id: proposalId,
+          expected_revision: withdrawn.revision,
+        })
+        assert.isTrue(deleted.deleted)
+        const cancelled = await db.from('editorial_jobs').where('id', pendingImage).first()
+        assert.equal(cancelled.status, 'cancelled')
+        assert.isNull(await db.from('editorial_proposals').where('id', proposalId).first())
+        assert.isNull(await Playlist.find(saved.playlist_id))
+      } finally {
+        await handler.close()
+      }
     })
     test('failed publication rolls back every public row', async ({ assert }) => {
       const proposal = await service.create(actor, content(), randomUUID())

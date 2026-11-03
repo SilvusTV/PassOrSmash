@@ -1,17 +1,15 @@
 import { test } from '@japa/runner'
 import env from '#start/env'
-import app from '@adonisjs/core/services/app'
 import db from '@adonisjs/lucid/services/db'
 import User from '#models/user'
 import { randomUUID } from 'node:crypto'
-import { mkdir, writeFile } from 'node:fs/promises'
 import sharp from 'sharp'
 import Proposals from '#services/editorial/proposals'
 import { contentSchema, scopes, type Actor } from '#services/editorial/contracts'
 
 const base = 'http://localhost:3333'
 if (process.env.EDITORIAL_DB_TESTS === '1') {
-  test.group('Editorial complete workflow', (group) => {
+  test.group('Simple editorial workflow', (group) => {
     let user: User
     let actor: Actor
     const service = new Proposals()
@@ -27,243 +25,158 @@ if (process.env.EDITORIAL_DB_TESTS === '1') {
       env.set('EDITORIAL_ADMIN_DISCORD_IDS', user.discordId!)
       actor = { userId: user.id, identity: `dashboard:${user.id}`, scopes: [...scopes] }
     })
-
-    test('creates a draft, filters selections and saves readable settings across every mobile tab', async ({
+    test('creates, edits images inline, publishes without review, withdraws and republishes on mobile', async ({
       browserContext,
       assert,
     }) => {
       await browserContext.loginAs(user)
       const page = await browserContext.visit(`${base}/admin/editorial`)
-      page.setDefaultTimeout(10000)
-      const errors: string[] = []
-      page.on('pageerror', (error) => errors.push(error.message))
-      await page.getByRole('button', { name: /créer un brouillon/i }).click()
-      await page.getByLabel('Titre', { exact: true }).waitFor()
-      assert.match(page.url(), /\/proposals\/[a-f0-9-]+$/)
-      await page.getByLabel('Titre', { exact: true }).fill('Une nouvelle sélection')
-      await page.getByRole('button', { name: 'Enregistrer', exact: true }).click()
-      await page.getByRole('heading', { name: 'Une nouvelle sélection', exact: true }).waitFor()
-      await page.getByRole('link', { name: '← Studio éditorial', exact: true }).click()
-      await page.getByLabel('Rechercher une sélection').fill('introuvable')
-      await page.getByText('Aucun résultat.', { exact: true }).waitFor()
-      await page.getByLabel('Rechercher une sélection').fill('nouvelle')
-      await page.getByRole('link', { name: 'Une nouvelle sélection', exact: true }).waitFor()
-      await page.getByLabel('Statut', { exact: true }).selectOption('published')
-      await page.getByText('Aucun résultat.', { exact: true }).waitFor()
-      await page.getByRole('button', { name: 'Planification', exact: true }).click()
-      const categories = page.getByLabel('Catégories (séparées par des virgules)')
-      await categories.fill('cinéma, science fiction')
-      assert.equal(await categories.inputValue(), 'cinéma, science fiction')
-      await Promise.all([
-        page.waitForResponse(
-          (response) =>
-            response.request().method() === 'POST' && response.url().endsWith('/settings')
-        ),
-        page.getByRole('button', { name: 'Enregistrer les réglages' }).click(),
-      ])
-      const row = await db.from('editorial_settings').where('id', 1).first()
-      assert.deepEqual(row.settings.categories, ['cinéma', 'science fiction'])
-      await page.getByRole('button', { name: 'Sélections', exact: true }).click()
-      assert.equal(
-        await page.getByRole('combobox', { name: 'Catégorie', exact: true }).inputValue(),
-        'cinéma'
-      )
-      await page.setViewportSize({ width: 390, height: 844 })
-      for (const theme of ['light', 'dark']) {
-        await page.evaluate(`document.documentElement.dataset.theme = '${theme}'`)
-        for (const label of ['Sélections', 'Planification', 'Activité', 'Connexions MCP']) {
-          await page
-            .getByRole('navigation', { name: 'Sections du studio' })
-            .getByRole('button', { name: label, exact: true })
-            .click()
-          assert.isTrue(
-            await page.evaluate('document.documentElement.scrollWidth <= window.innerWidth'),
-            `${theme}: ${label}`
-          )
-        }
-        await page.screenshot({
-          path: `tmp/studio-connections-${theme}-mobile.png`,
-          fullPage: true,
-        })
-      }
-      assert.deepEqual(errors, [])
-    })
-
-    test('edits sources, saves direct links and PC uploads with optional credit, previews and publishes', async ({
-      browserContext,
-      assert,
-    }) => {
-      const urls = ['https://example.com/news', 'https://example.com/official']
-      const created = await service.create(
-        actor,
-        contentSchema.parse({
-          title: 'Sélection complète',
-          category: 'jeux',
-          items: [1, 2].map((i) => ({ title: `Jeu ${i}`, source_urls: [urls[0]] })),
-          sources: urls.map((url) => ({
-            title: 'Annonce officielle',
-            url,
-            retrieved_at: new Date().toISOString(),
-          })),
-        }),
-        randomUUID()
-      )
-      const mediaId = randomUUID()
-      const provenance = {
-        url: 'https://example.com/photo.png',
-        credit: 'Photo de test',
-        license: 'CC0' as const,
-        license_url: 'https://creativecommons.org/publicdomain/zero/1.0/',
-      }
-      await mkdir(app.tmpPath('editorial'), { recursive: true })
-      await writeFile(
-        app.tmpPath('editorial', `${mediaId}.png`),
-        await sharp({ create: { width: 160, height: 160, channels: 3, background: '#caff38' } })
-          .png()
-          .toBuffer()
-      )
-      await db.table('editorial_media').insert({
-        id: mediaId,
-        user_id: user.id,
-        path: `${mediaId}.png`,
-        provenance: JSON.stringify(provenance),
-        width: 160,
-        height: 160,
-        created_at: new Date(),
-      })
-      await browserContext.loginAs(user)
-      const page = await browserContext.visit(
-        `${base}/admin/editorial/proposals/${created.proposal_id}`
-      )
       page.setDefaultTimeout(12000)
       const errors: string[] = []
       page.on('pageerror', (error) => errors.push(error.message))
-      await page.getByRole('button', { name: 'Images & crédits', exact: true }).click()
-      await page.getByRole('heading', { name: 'Images & crédits.', exact: true }).waitFor()
-      await page.getByRole('button', { name: 'Contenu', exact: true }).click()
-      const sources = page.getByLabel('URLs des sources (une par ligne)').first()
-      await sources.fill(`${urls.join('\n')}\n`)
-      assert.equal(await sources.inputValue(), `${urls.join('\n')}\n`)
-      await page.getByRole('button', { name: 'Descendre', exact: true }).first().click()
-      await page.getByRole('button', { name: 'Enregistrer', exact: true }).click()
-      await page.getByLabel('Titre de l’élément 1').waitFor()
-      assert.equal(await page.getByLabel('Titre de l’élément 1').inputValue(), 'Jeu 2')
-      // Saving remains available after switching away from a dirty content form.
-      await page.getByLabel('Titre', { exact: true }).fill('Sélection finalisée')
-      await page.getByRole('button', { name: 'Images & crédits' }).click()
-      assert.isTrue(await page.getByRole('button', { name: 'Lancer l’import' }).isDisabled())
-      await page.getByRole('button', { name: 'Enregistrer', exact: true }).click()
-      await page.getByRole('heading', { name: 'Sélection finalisée', exact: true }).waitFor()
-      await page
-        .getByLabel('Description de la sélection', { exact: true })
-        .first()
-        .fill('Texte conservé après un conflit de version.')
-      const concurrent = await service.get(actor, created.proposal_id)
-      await service.mutate(
-        actor,
-        created.proposal_id,
-        concurrent.revision,
-        'update',
-        (content) => ({ ...content, category: 'culture' })
+      assert.isFalse(
+        await page
+          .getByText('Une option pour préparer des brouillons depuis l’actualité.')
+          .isVisible()
       )
-      await Promise.all([
-        page.waitForResponse(
-          (response) => response.request().method() === 'POST' && response.url().endsWith('/save')
-        ),
-        page.getByRole('button', { name: 'Enregistrer', exact: true }).click(),
-      ])
+      await page.getByRole('button', { name: '+ Nouvelle sélection', exact: true }).click()
+      await page.getByLabel('Titre', { exact: true }).fill('Une sélection toute simple')
       await page
-        .getByText('La proposition a changé. Rechargez son aperçu.', { exact: true })
-        .waitFor()
-      assert.equal(
-        await page.getByLabel('Description de la sélection', { exact: true }).first().inputValue(),
-        'Texte conservé après un conflit de version.'
-      )
-      await Promise.all([
-        page.waitForResponse(
-          (response) => response.request().method() === 'POST' && response.url().endsWith('/save')
-        ),
-        page.getByRole('button', { name: 'Enregistrer', exact: true }).click(),
-      ])
-      await page.getByRole('button', { name: 'Images & crédits' }).click()
-      const proposal = await service.get(actor, created.proposal_id)
+        .getByLabel('Description (facultative)', { exact: true })
+        .fill('Deux images, aucun dossier à remplir.')
+      for (let index = 1; index <= 2; index++) {
+        await page.getByRole('button', { name: '+ Ajouter un élément', exact: true }).click()
+        await page
+          .getByLabel(`Titre de l’élément ${index}`, { exact: true })
+          .fill(`Élément ${index}`)
+      }
       const imageBytes = await sharp({
         create: { width: 160, height: 160, channels: 3, background: '#caff38' },
       })
         .png()
         .toBuffer()
-      await page.route(provenance.url, (route) =>
+      const imageUrl = 'https://example.com/direct.png'
+      await page.route(imageUrl, (route) =>
         route.fulfill({ body: imageBytes, contentType: 'image/png' })
       )
-      assert.equal(await page.getByLabel('Licence', { exact: true }).count(), 0)
-      assert.equal(await page.getByLabel('Image depuis le PC').count(), 0)
-      for (const [index, item] of proposal.content.items.entries()) {
-        await page.getByRole('combobox', { name: /^Élément/ }).selectOption(item.id)
-        if (index === 0) {
-          await page.getByLabel('URL de l’image', { exact: true }).fill(provenance.url)
-        } else {
-          await page.getByRole('button', { name: 'Importer depuis le PC', exact: true }).click()
-          await page
-            .getByLabel('Image depuis le PC')
-            .setInputFiles({ name: 'photo.png', mimeType: 'image/png', buffer: imageBytes })
-          await page.getByLabel('Crédit (facultatif)', { exact: true }).fill(provenance.credit)
-        }
-        await Promise.all([
-          page.waitForResponse(
-            (response) =>
-              response.request().method() === 'POST' && response.url().endsWith('/image')
-          ),
-          page.getByRole('button', { name: 'Enregistrer l’image', exact: true }).click(),
-        ])
-        await page.getByRole('button', { name: 'Enregistrer l’image', exact: true }).waitFor()
-      }
-      const saved = await service.get(actor, created.proposal_id)
-      const linked = await db
-        .from('editorial_media')
-        .where('id', saved.content.items[0].media_id)
-        .first()
-      assert.equal(linked.path, '')
-      assert.equal(linked.provenance.credit, '')
-      assert.equal(
-        await page.locator('.editorial-preview img').first().getAttribute('src'),
-        provenance.url
-      )
-      assert.lengthOf(await db.from('editorial_jobs').where('kind', 'image'), 0)
+      await page.getByLabel('Lien de l’image 1', { exact: true }).fill(imageUrl)
       await page
-        .getByRole('button', { name: 'Soumettre pour examen', exact: true })
-        .waitFor({ state: 'visible' })
-      assert.isFalse(
-        await page.getByRole('button', { name: 'Soumettre pour examen', exact: true }).isDisabled()
+        .getByLabel('Importer une image pour l’élément 2', { exact: true })
+        .setInputFiles({ name: 'photo.png', mimeType: 'image/png', buffer: imageBytes })
+      await page.getByLabel('Crédit 2 (facultatif)', { exact: true }).fill('Photo test')
+      await page.getByRole('button', { name: 'Enregistrer', exact: true }).click()
+      await page.getByText('Tout est enregistré', { exact: true }).waitFor()
+      const proposalId = page.url().split('/').at(-1)!
+      let saved = await service.get(actor, proposalId)
+      assert.equal(saved.content.items[0].image_url, imageUrl)
+      assert.equal(saved.content.items[0].image_credit, '')
+      assert.isString(saved.content.items[1].media_id)
+      assert.lengthOf(await db.from('editorial_jobs'), 0)
+      assert.equal(
+        await page.locator('.edito-item-picture img').first().getAttribute('src'),
+        imageUrl
       )
-      await page.screenshot({ path: 'tmp/studio-images-desktop.png', fullPage: true })
-      await page.getByRole('button', { name: 'Aperçu du jeu' }).click()
-      await page.getByRole('heading', { name: 'Aperçu du jeu', exact: true }).waitFor()
-      assert.isTrue(
-        await page
-          .locator('.editorial-preview img')
-          .evaluateAll((images) =>
-            images.every((image) => (image as any).complete && (image as any).naturalWidth > 0)
-          )
-      )
+      await page.screenshot({ path: 'tmp/edito-simple-desktop.png', fullPage: true })
+      await page.getByRole('button', { name: 'Aperçu', exact: true }).click()
+      await page.getByRole('heading', { name: 'Aperçu', exact: true }).waitFor()
+      await page.getByRole('button', { name: 'Fermer l’aperçu', exact: true }).click()
+      await page.getByRole('button', { name: 'Publier', exact: true }).click()
+      await page.getByText('En ligne', { exact: true }).waitFor()
+      saved = await service.get(actor, proposalId)
+      const publicUrl = saved.public_url
+      assert.equal(saved.status, 'published')
+      const publishedItems = await db
+        .from('playlist_items')
+        .where('playlist_id', saved.playlist_id)
+        .orderBy('position')
+      await db.from('playlist_items').where('id', publishedItems[0].id).update({ smashes: 7 })
+      const response = await browserContext.request.get(`${base}${publicUrl}`)
+      assert.equal(response.status(), 200)
+      assert.include(await response.text(), imageUrl)
+      await page.getByLabel('Titre', { exact: true }).fill('Version en ligne modifiée')
+      await page.getByRole('button', { name: 'Mettre à jour', exact: true }).click()
+      await page.getByRole('heading', { name: 'Version en ligne modifiée', exact: true }).waitFor()
+      const online = await service.get(actor, proposalId)
+      assert.equal(online.status, 'published')
+      assert.equal(online.public_url, publicUrl)
+      await page.getByRole('button', { name: 'Retirer du site', exact: true }).click()
+      await page.getByRole('button', { name: 'Publier', exact: true }).waitFor()
+      await page.getByRole('button', { name: 'Descendre l’élément 1', exact: true }).click()
+      await page.getByLabel('Titre', { exact: true }).fill('Version modifiée')
       await page.setViewportSize({ width: 390, height: 844 })
       assert.isTrue(
         await page.evaluate('document.documentElement.scrollWidth <= window.innerWidth')
       )
-      await page.screenshot({ path: 'tmp/studio-preview-mobile.png', fullPage: true })
-      await page.getByRole('button', { name: 'Soumettre pour examen', exact: true }).click()
-      await page.getByRole('button', { name: /Approuver et publier la version/ }).waitFor()
-      await page.getByRole('button', { name: 'Refuser', exact: true }).click()
-      await page.getByRole('button', { name: 'Rouvrir pour modification', exact: true }).click()
-      await page.getByRole('button', { name: 'Soumettre pour examen', exact: true }).click()
-      await page.getByRole('button', { name: /Approuver et publier la version/ }).click()
-      await page.getByText('Publiée', { exact: true }).waitFor()
-      const published = await service.get(actor, created.proposal_id)
-      assert.equal(published.status, 'published')
-      assert.isNumber(published.playlist_id)
-      const playlist = await db.from('playlists').where('id', published.playlist_id).first()
-      const publicPage = await browserContext.request.get(`${base}/p/${playlist.slug}`)
-      assert.equal(publicPage.status(), 200)
+      await page.screenshot({ path: 'tmp/edito-simple-mobile.png', fullPage: true })
+      await page.getByRole('button', { name: 'Publier', exact: true }).click()
+      await page.getByText('En ligne', { exact: true }).waitFor()
+      saved = await service.get(actor, proposalId)
+      assert.equal(saved.public_url, publicUrl)
+      const republished = await db
+        .from('playlist_items')
+        .where('playlist_id', saved.playlist_id)
+        .orderBy('position')
+      assert.deepEqual(
+        republished.map((item) => item.id),
+        publishedItems.map((item) => item.id).reverse()
+      )
+      assert.equal(republished[1].smashes, 7)
+      await page.getByRole('button', { name: 'Retirer du site', exact: true }).click()
+      await page.getByRole('button', { name: 'Supprimer la sélection', exact: true }).waitFor()
+      page.once('dialog', (dialog) => dialog.accept())
+      await page.getByRole('button', { name: 'Supprimer la sélection', exact: true }).click()
+      await page.getByRole('heading', { name: 'Édito', exact: true }).waitFor()
+      assert.isNull(await db.from('editorial_proposals').where('id', proposalId).first())
       assert.deepEqual(errors, [])
+    })
+    test('keeps unsaved text after an MCP edit conflict and exposes settings without crowding the list', async ({
+      browserContext,
+      assert,
+    }) => {
+      const created = await service.create(
+        actor,
+        contentSchema.parse({ title: 'Brouillon à modifier' }),
+        randomUUID()
+      )
+      await browserContext.loginAs(user)
+      const page = await browserContext.visit(
+        `${base}/admin/editorial/proposals/${created.proposal_id}`
+      )
+      await page.getByLabel('Description (facultative)', { exact: true }).fill('Texte à conserver.')
+      await service.mutate(actor, created.proposal_id, 1, 'mcp-edit', (content) => ({
+        ...content,
+        category: 'jeux',
+      }))
+      await page.getByRole('button', { name: 'Enregistrer', exact: true }).click()
+      await page
+        .getByText('La proposition a changé. Rechargez son aperçu.', { exact: true })
+        .waitFor()
+      await page.screenshot({ path: 'tmp/edito-conflict-debug.png', fullPage: true })
+      assert.equal(
+        await page.getByLabel('Description (facultative)', { exact: true }).inputValue(),
+        'Texte à conserver.'
+      )
+      await page.getByRole('button', { name: 'Enregistrer', exact: true }).click()
+      await page.getByText('Tout est enregistré', { exact: true }).waitFor()
+      const saved = await service.get(actor, created.proposal_id)
+      assert.equal(saved.content.description, 'Texte à conserver.')
+      await page.getByRole('link', { name: '← Toutes les sélections', exact: true }).click()
+      await page.getByLabel('Rechercher', { exact: true }).fill('introuvable')
+      await page.getByText('Aucune sélection trouvée.', { exact: true }).waitFor()
+      await page.getByText('Préparation automatique', { exact: true }).click()
+      await page.getByText('Réglages de l’automatisation', { exact: true }).click()
+      await page.getByText('Budget et options', { exact: true }).click()
+      await page
+        .getByLabel('Catégories (séparées par des virgules)', { exact: true })
+        .fill('cinéma, science fiction')
+      await page.getByRole('button', { name: 'Enregistrer les réglages', exact: true }).click()
+      await page.getByText('Action éditoriale enregistrée.', { exact: true }).waitFor()
+      const settings = await db.from('editorial_settings').where('id', 1).first()
+      assert.deepEqual(settings.settings.categories, ['cinéma', 'science fiction'])
+      await page.setViewportSize({ width: 390, height: 844 })
+      assert.isTrue(
+        await page.evaluate('document.documentElement.scrollWidth <= window.innerWidth')
+      )
     })
   })
 }

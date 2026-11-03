@@ -23,6 +23,11 @@ export const itemSchema = z.strictObject({
   title: z.string().trim().min(1).max(120),
   description: z.string().trim().max(500).default(''),
   media_id: id.optional(),
+  image_url: z
+    .url({ protocol: /^https?$/ })
+    .max(2048)
+    .optional(),
+  image_credit: z.string().trim().max(500).optional(),
   source_urls: z
     .array(z.url({ protocol: /^https$/ }))
     .max(20)
@@ -31,7 +36,7 @@ export const itemSchema = z.strictObject({
 export const contentSchema = z.strictObject({
   title: z.string().trim().min(3).max(120),
   description: z.string().trim().max(600).default(''),
-  category: z.string().min(1).max(60),
+  category: z.string().trim().min(1).max(60).default('sélection'),
   items: z.array(itemSchema).max(100).default([]),
   sources: z.array(sourceSchema).max(50).default([]),
   checks: z.array(z.string().min(1).max(500)).max(30).default([]),
@@ -40,7 +45,7 @@ export type Content = z.infer<typeof contentSchema>
 export const contentPatchSchema = z.strictObject({
   title: contentSchema.shape.title.optional(),
   description: z.string().trim().max(600).optional(),
-  category: contentSchema.shape.category.optional(),
+  category: z.string().trim().min(1).max(60).optional(),
   sources: z.array(sourceSchema).max(50).optional(),
   checks: z.array(z.string().min(1).max(500)).max(30).optional(),
 })
@@ -48,6 +53,11 @@ export const itemPatchSchema = z.strictObject({
   title: itemSchema.shape.title.optional(),
   description: z.string().trim().max(500).optional(),
   media_id: id.optional(),
+  image_url: z
+    .url({ protocol: /^https?$/ })
+    .max(2048)
+    .optional(),
+  image_credit: z.string().trim().max(500).optional(),
   source_urls: z
     .array(z.url({ protocol: /^https$/ }))
     .max(20)
@@ -98,6 +108,23 @@ export const settingsSchema = z.strictObject({
   automation_user_id: z.number().int().positive().optional(),
   notification_label: z.string().max(120).default(''),
 })
+export const settingsPatchSchema = z.strictObject({
+  enabled: z.boolean().optional(),
+  timezone: z.literal('Europe/Paris').optional(),
+  slots: settingsSchema.shape.slots.removeDefault().optional(),
+  categories: settingsSchema.shape.categories.removeDefault().optional(),
+  sources: settingsSchema.shape.sources.removeDefault().optional(),
+  freshness_days: settingsSchema.shape.freshness_days.removeDefault().optional(),
+  catchup_hours: settingsSchema.shape.catchup_hours.removeDefault().optional(),
+  item_count: settingsSchema.shape.item_count.removeDefault().optional(),
+  daily_job_limit: settingsSchema.shape.daily_job_limit.removeDefault().optional(),
+  daily_budget_cents: settingsSchema.shape.daily_budget_cents.removeDefault().optional(),
+  generation_call_cost_cents: settingsSchema.shape.generation_call_cost_cents
+    .removeDefault()
+    .optional(),
+  automation_user_id: settingsSchema.shape.automation_user_id,
+  notification_label: settingsSchema.shape.notification_label.removeDefault().optional(),
+})
 export type Settings = z.infer<typeof settingsSchema>
 export class EditorialError extends Error {
   tracking_id = randomUUID()
@@ -128,6 +155,6 @@ export function assertDraft(status: string) {
   if (status !== 'draft')
     throw new EditorialError(
       'INVALID_STATE',
-      'Seul un brouillon peut être modifié. Réouverture requise dans le tableau de bord.'
+      'Retirez cette sélection du site avant de la modifier.'
     )
 }

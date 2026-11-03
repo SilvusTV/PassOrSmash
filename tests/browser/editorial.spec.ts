@@ -32,7 +32,7 @@ if (process.env.EDITORIAL_DB_TESTS === '1') {
       const context = await browser.newContext({ viewport: { width: 1280, height: 900 } })
       await context.loginAs(user)
       const page = await context.visit('http://localhost:3333/admin/editorial')
-      await page.getByRole('heading', { name: 'Studio éditorial.' }).waitFor()
+      await page.getByRole('heading', { name: 'Édito' }).waitFor()
       await page.screenshot({ path: 'tmp/editorial-admin-desktop.png', fullPage: true })
       await page.getByRole('link', { name: 'Sélection de démonstration' }).click()
       await page.getByLabel('Titre', { exact: true }).fill('Sélection modifiée')
@@ -43,7 +43,7 @@ if (process.env.EDITORIAL_DB_TESTS === '1') {
         proposal.proposal_id
       )
       assert.equal(saved.revision, 2)
-      assert.isTrue(await page.getByRole('button', { name: 'Soumettre pour examen' }).isDisabled())
+      assert.isTrue(await page.getByRole('button', { name: 'Publier', exact: true }).isVisible())
       await page.setViewportSize({ width: 390, height: 844 })
       await page.screenshot({ path: 'tmp/editorial-proposal-mobile.png', fullPage: true })
       assert.isTrue(

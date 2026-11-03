@@ -42,14 +42,9 @@ export default class EditorialMedia {
     if (
       !['jpeg', 'png', 'webp', 'gif'].includes(metadata.format || '') ||
       !metadata.width ||
-      !metadata.height ||
-      metadata.width < 100 ||
-      metadata.height < 100
+      !metadata.height
     )
-      throw new EditorialError(
-        'VALIDATION_FAILED',
-        'Image invalide (JPG, PNG, WebP ou GIF, 100 pixels minimum).'
-      )
+      throw new EditorialError('VALIDATION_FAILED', 'Image invalide (JPG, PNG, WebP ou GIF).')
     const output = await image
       .rotate()
       .resize({ width: 2000, height: 2000, fit: 'inside', withoutEnlargement: true })

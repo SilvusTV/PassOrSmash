@@ -127,6 +127,17 @@ export default class PlaylistsController {
           .whereIn('id', editorialMediaIds)
           .select('id', 'path', 'provenance')
       : []
+    const editorial = await db.from('editorial_proposals').where('playlist_id', playlist.id).first()
+    const editorialItems = (editorial?.content.items || []) as {
+      id: string
+      image_credit?: string
+    }[]
+    const identities = editorial
+      ? await db
+          .from('playlist_items')
+          .where('playlist_id', playlist.id)
+          .select('id', 'editorial_item_id')
+      : []
     const visitorId = request.cookie('pos_visitor') || string.random(32)
     response.cookie('pos_visitor', visitorId, { httpOnly: true, sameSite: 'lax', maxAge: '1 year' })
     return inertia.render('playlists/show', {
@@ -148,9 +159,19 @@ export default class PlaylistsController {
           )?.provenance.url || item.imageUrl,
         smashes: item.smashes,
         passes: item.passes,
-        imageCredit: editorialMedia.find(
-          (media) => item.imageUrl === `/editorial/media/${media.id}`
-        )?.provenance,
+        imageCredit: (() => {
+          const entry = editorialItems.find(
+            (candidate) =>
+              candidate.id ===
+              identities.find((identity) => identity.id === item.id)?.editorial_item_id
+          )
+          const provenance = editorialMedia.find(
+            (media) => item.imageUrl === `/editorial/media/${media.id}`
+          )?.provenance
+          return entry?.image_credit !== undefined
+            ? { url: item.imageUrl, credit: entry.image_credit }
+            : provenance
+        })(),
       })),
       canEdit: playlist.userId === auth.user?.id,
     })
